@@ -6,10 +6,14 @@
 #include "masm.h"
 #include "Types.h"
 
-masm::masm(const std::string &file)
-        :asmFileName{file} {
+/*
+ *
+ *      TODO
+ * */
 
-};
+
+masm::masm(const std::string &file)
+        :asmFileName{file} {}
 
 void masm::createListingFile() {
     firstView();
