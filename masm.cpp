@@ -37,10 +37,19 @@ void masm::secondView() {
                                                   [](const char symbol){ return symbol == ' ' || symbol == '\t';}),
                                    oneStringFromAsmFile.end());
         if(!oneStringFromAsmFile.empty()){
-            std::cout << std::setw(6) << std::hex << std::uppercase << infoAboutLines[currentLine].address <<
-                      std::setw(20) << std::left << tmp << '\n' ;
+            assembler::stringsVector vector;
+            std::string help{oneStringFromAsmFile};
+            assembler::createVectorOfWordsFromString(help , vector);
+            assembler::splitByDelimiters("{}", vector);
+            if(!assembler::isWordInVector({"end"} , oneStringFromAsmFile) && !assembler::isWordInVector({"model"} , vector.front())){
+                std::cout << std::setw(6) << std::hex << std::uppercase << std::left <<infoAboutLines[currentLine].address <<
+                          std::setw(20) << std::left << tmp << std::endl;
+            } else {
+                std::cout  << tmp << std::endl ;
+            }
+
         } else {
-            std::cout << '\n';
+            std::cout << std::endl;
         }
         if(!oneStringFromAsmFile.empty() && infoAboutLines[currentLine].isErrorInLine){
             std::cout << "Error" << std::endl;
@@ -154,6 +163,7 @@ void masm::workWithCommand() {
 
     if(tmp == assembler::instructionsVector().at(2)){ // .end
         endOfFile = true;
+        infoAboutLines[line].address = -1;
         return;
     }
     if((infoAboutLines[line].isErrorInLine = !_code.isOpen()) && !assembler::isWordInVector({"model"} , wordsInString.front()) ){
@@ -193,7 +203,10 @@ void masm::workWithIdentifier() {
         currentAddressEqualsToPreviousAddress();
         return;
     }
-
+    if( (infoAboutLines[line].isErrorInLine = wordsInString.front().size() > 4)){
+        currentAddressEqualsToPreviousAddress();
+        return;
+    }
     typename assembler::identifier new_identifier (wordsInString.front() , identifierType , wordsInString.back());
 
     if( (infoAboutLines[line].isErrorInLine =  !new_identifier.isCorrectIdentifierValue())){
@@ -281,7 +294,12 @@ void masm::createAddress() {
                 case 1:
                     value = getBytesForUserIdetifier(operands.front());
                     break;
-
+                case 3:
+                    value = 3;
+                    if(isDD_Identifier(operands.back())){
+                        value += 1;
+                    }
+                    break;
                 case 8 :
                     value = 1;
                     value += getBytesForRegister(operands[4]);
@@ -292,6 +310,7 @@ void masm::createAddress() {
                 case 4 :
                 case 6 :
                     if(assembler::isWordInVector(assembler::segmentRegisters() , operands.front())){
+                        value = 1;
                         value += getBytesForRegister(operands[4]);
                         if(isDD_Identifier(operands[2])){
                             value += 1;
@@ -306,7 +325,7 @@ void masm::createAddress() {
                     break;
             }
             for(size_t i = line ; i < infoAboutLines.size() ; ++i){
-                infoAboutLines[i + 1].address = infoAboutLines[i + 1].address+value;
+                infoAboutLines[i + 1].address += value;
             }
         } else {
             for(size_t i = line ; i < infoAboutLines.size() ; ++i){

@@ -20,7 +20,7 @@
 namespace assembler{
 
 
-
+    std::string fromHexToDec(const std::string& value);
     struct identifier {
     public:
         friend bool operator<(const identifier &lft, const identifier &rht);
@@ -39,7 +39,7 @@ namespace assembler{
         void setValue(const std::string &value);
         std::string getName() const;
         IdentifierType getType() const;
-        size_t getNumberOfByte(size_t) const;
+        int  getNumberOfByte(size_t) const;
         bool isCorrectIdentifierValue() const;
         bool isCorrectRangesForType(IdentifierType type , const std::string& value) const;
         void print() const;
@@ -116,7 +116,7 @@ namespace assembler{
     void syntAnaliser(std::ostream& os , const lexem_type& vectorLexems);
     lexem_type  lexemParsing(const stringsVector& vectorOfOperands );
 
-    size_t getNumberOfByteForAddressExpr(const stringsVector& exp);
+    int  getNumberOfByteForAddressExpr(const stringsVector& exp);
 
 
     void splitByDelimiters(const std::string& delimiters  , stringsVector & vector);
@@ -135,7 +135,7 @@ namespace assembler{
         };
         virtual ~Command() = default;
         virtual bool isCorrectOperands(size_t line) = 0;
-        virtual size_t getNumberOfByte(size_t) = 0;
+        virtual int  getNumberOfByte(size_t) = 0;
         //virtual std::string createByteCode() = 0;
 
     };
@@ -148,7 +148,7 @@ namespace assembler{
         bool isCorrectOperands(size_t line) override ;
         bool isCorrectFirstOperand();
         bool isCorrectSecondOperand();
-        size_t getNumberOfByte(size_t) override ;
+        int  getNumberOfByte(size_t) override ;
     };
     class Imul : public Command{
     public:
@@ -158,7 +158,7 @@ namespace assembler{
         ~Imul() override = default ;
         bool isCorrectOperands(size_t line) override;
         //std::string createByteCode() override ;
-        size_t getNumberOfByte(size_t) override ;
+        int  getNumberOfByte(size_t) override ;
     };
     class Idiv : public Command{
     public:
@@ -169,7 +169,7 @@ namespace assembler{
         };
         ~Idiv() override = default ;
         bool isCorrectOperands(size_t line) override;
-        size_t getNumberOfByte(size_t) override ;
+        int  getNumberOfByte(size_t) override ;
 
     };
     class Or : public Command{
@@ -179,7 +179,7 @@ namespace assembler{
                 :Command(string){};
         ~Or() override = default ;
         bool isCorrectOperands(size_t line) override;
-        size_t getNumberOfByte(size_t) override ;
+        int  getNumberOfByte(size_t) override ;
         bool isCorrectFirstOperand();
         bool isCorrectSecondOperand();
     };
@@ -190,7 +190,7 @@ namespace assembler{
                 :Command(string){};
         ~Cmp() override = default ;
         bool isCorrectOperands(size_t line) override;
-        size_t getNumberOfByte(size_t) override ;
+        int  getNumberOfByte(size_t) override ;
         bool isCorrectFirstOperand();
         bool isCorrectSecondOperand(size_t line);
     };
@@ -201,7 +201,7 @@ namespace assembler{
                 :Command(string){};
         ~Jng() override = default ;
         bool isCorrectOperands(size_t line) override ;
-        size_t getNumberOfByte(size_t) override ;
+        int  getNumberOfByte(size_t) override ;
     };
     class And : public Command{
     public:
@@ -210,7 +210,7 @@ namespace assembler{
                 :Command(string){};
         ~And() override = default ;
         bool isCorrectOperands(size_t line) override;
-        size_t getNumberOfByte(size_t) override ;
+        int  getNumberOfByte(size_t) override ;
         bool isCorrectFirstOperand(size_t line);
         bool isCorrectSecondOperand();
     };
@@ -221,7 +221,7 @@ namespace assembler{
                 :Command(string){};
         ~Add() override = default ;
         bool isCorrectOperands(size_t line) override;
-        size_t getNumberOfByte(size_t) override ;
+        int  getNumberOfByte(size_t) override ;
         bool isCorrectFirstOperand(size_t line);
         bool isCorrectSecondOperand();
     };
@@ -232,7 +232,7 @@ namespace assembler{
                 :Command(string){};
         ~Cwde() override = default ;
         bool isCorrectOperands(size_t line) override ;
-        size_t getNumberOfByte(size_t) override ;
+        int  getNumberOfByte(size_t) override ;
     };
     class Model : public Command{
     public:
@@ -241,7 +241,7 @@ namespace assembler{
                 :Command(string){};
         ~Model() override = default ;
         bool isCorrectOperands(size_t line) override ;
-        size_t getNumberOfByte(size_t) override ;
+        int  getNumberOfByte(size_t) override ;
     };
 
 

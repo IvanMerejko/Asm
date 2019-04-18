@@ -13,7 +13,7 @@ class masm {
 private:
     struct info{
         bool isErrorInLine;
-        size_t address;
+        int address;
         assembler::WordType type;
     };
 public:

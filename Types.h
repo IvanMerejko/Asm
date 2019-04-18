@@ -8,11 +8,6 @@
 namespace assembler{
 
 
-
-
-
-
-
     constexpr auto MAX_DB_VALUE = static_cast<int>(std::numeric_limits<char>::max());
     constexpr auto MAX_DW_VALUE = static_cast<int>(std::numeric_limits<short>::max());
     constexpr auto MAX_DD_VALUE = std::numeric_limits<int>::max();

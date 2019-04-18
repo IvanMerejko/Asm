@@ -6,6 +6,8 @@
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+#include <cmath>
+
 #include "assembler.h"
 namespace assembler{
 
@@ -15,6 +17,45 @@ namespace assembler{
      *  address expresion numbers of byte
      *
      * */
+    std::string fromBinaryToDec(const std::string& value){
+        int result{0};
+        for(int i {static_cast<int>(value.size() - 2)} , j{0} ; i >= 0 ; --i , ++j){
+            result += static_cast<int>(std::pow(2 , j) * (static_cast<int>(value[i]) - 48));
+        }
+        return std::to_string(result);
+    }
+    std::string fromHexToDec(const std::string& value){
+        std::string number{value.substr(0 , value.size() - 1)};
+        size_t length = number.size();
+        std::transform(number.begin() , number.end() , number.begin() , ::tolower);
+        int result{0};
+        for(int i = length - 1 , j {0} ; i >= 0  ; --i , ++j){
+            switch (number[i]){
+                case 'a':
+                    result += static_cast<int>(std::pow(16 , j)) * 10;
+                    break;
+                case 'b':
+                    result += static_cast<int>(std::pow(16 , j)) * 11;
+                    break;
+                case 'c':
+                    result += static_cast<int>(std::pow(16 , j)) * 12;
+                    break;
+                case 'd':
+                    result += static_cast<int>(std::pow(16 , j)) * 13;
+                    break;
+                case 'e':
+                    result += static_cast<int>(std::pow(16 , j)) * 14;
+                    break;
+                case 'f':
+                    result += static_cast<int>(std::pow(16 , j)) * 15;
+                    break;
+                default:
+                    result += static_cast<int>(std::pow(16 , j)) *  (static_cast<int>(number[i]) - 48) ;
+
+            }
+        }
+        return std::to_string(result);
+    }
 
     void identifier::setValue(const std::string &value) {
         this->value = value;
@@ -22,7 +63,7 @@ namespace assembler{
     std::string identifier::getName() const {
         return name;
     }
-    size_t identifier::getNumberOfByte(size_t line) const {
+    int identifier::getNumberOfByte(size_t line) const {
         switch (type){
             case assembler::IdentifierType::DB:
                 return 1;
@@ -44,6 +85,9 @@ namespace assembler{
         auto positionOfMinusInValue = std::find(value.begin(), value.end(), '-');
         auto tmp = positionOfMinusInValue == value.begin() ? value.substr(1, value.size()) : value;
         auto lastLetter = static_cast <char> ( std::tolower(static_cast<unsigned char> (value.back())));
+        if(tmp.size() > 15){
+            return false;
+        }
         switch (lastLetter) {
             case 'h':
                 for (const auto &it : tmp.substr(0, tmp.size() - 1)) {
@@ -53,6 +97,9 @@ namespace assembler{
                                                                 one_value > 102) {
                         return false;
                     }
+                    if(!isCorrectRangesForType(this->type , fromHexToDec(tmp))){
+                        return false;
+                    }
                 }
                 break;
             case 'b':
@@ -60,9 +107,13 @@ namespace assembler{
                     if (auto one_value = static_cast<int>(it); one_value < 48 || one_value > 49) {
                         return false;
                     }
+                    if(!isCorrectRangesForType(this->type , fromBinaryToDec(tmp))){
+                        return false;
+                    }
 
                 }
                 break;
+            case 'd':
             default:
                 if (tmp.empty()) return false;
                 for (const auto &it : tmp) {
@@ -70,7 +121,7 @@ namespace assembler{
                         return false;
                     }
                 }
-                if(!isCorrectRangesForType(IdentifierType::DB , tmp)){
+                if(!isCorrectRangesForType(this->type , tmp)){
                     return false;
                 }
                 break;
@@ -321,7 +372,7 @@ namespace assembler{
                     IdentifierType::INCORRECT_IDENTIFIER;
         return identifier{"" , type , operands.back()}.isCorrectIdentifierValue();
     }
-    size_t Mov::getNumberOfByte(size_t line) {
+    int Mov::getNumberOfByte(size_t line) {
         size_t tmp = isWordInVector(registers8Vector()  , operands.front()) ?  1 :
                      isWordInVector(registers16Vector() , operands.front()) ? 2 : 5;
 
@@ -333,7 +384,7 @@ namespace assembler{
     bool Imul::isCorrectOperands(size_t line) {
         return operands.size() == 1 && isRegister(operands.front());
     };
-    size_t Imul::getNumberOfByte(size_t line) {
+    int Imul::getNumberOfByte(size_t line) {
         return isWordInVector(registers32Vector() , operands.front()) ? 3 : 2;
     }
     /************   Imul     *************/
@@ -343,7 +394,7 @@ namespace assembler{
 
         return isCorrectAddressExpression(operands , line);
     };
-    size_t Idiv::getNumberOfByte(size_t line) {
+    int Idiv::getNumberOfByte(size_t line) {
         std::string string{};
         for(const auto& oneStr : operands){
             string += oneStr;
@@ -374,7 +425,7 @@ namespace assembler{
     bool Or::isCorrectSecondOperand() {
         return isRegister(operands.back());
     }
-    size_t Or::getNumberOfByte(size_t line) {
+    int Or::getNumberOfByte(size_t line) {
         if(isWordInVector(registers32Vector(), operands.front()) &&
            isWordInVector(registers32Vector(), operands.back())){
             return 3;
@@ -400,7 +451,7 @@ namespace assembler{
         splitByDelimiters(":[*]" , firstOperand);
         return isCorrectAddressExpression(firstOperand , line);
     }
-    size_t Cmp::getNumberOfByte(size_t line) {
+    int Cmp::getNumberOfByte(size_t line) {
         std::string string{};
         if(operands.size() > 3 && isWordInVector(registers32Vector() , operands[4])){
             operands[4] = operands[4].substr(1 , operands[4].size());
@@ -422,7 +473,7 @@ namespace assembler{
         userIdentifiers::pushLabel(operands.front() , line);
         return true;
     };
-    size_t Jng::getNumberOfByte(size_t line) {
+    int Jng::getNumberOfByte(size_t line) {
 
         return 4;
     }
@@ -443,7 +494,7 @@ namespace assembler{
     bool And::isCorrectSecondOperand() {
         return isRegister(operands.back());
     }
-    size_t And::getNumberOfByte(size_t line) {
+    int And::getNumberOfByte(size_t line) {
 
         userIdentifiers::getMapOfAdressExpression()[line] = operands.front();
         return 2;
@@ -459,19 +510,17 @@ namespace assembler{
 
     };
     bool Add::isCorrectSecondOperand() {
-        auto type = isWordInVector(registers8Vector()  , operands.front()) ?  IdentifierType::DB :
-                    isWordInVector(registers16Vector() , operands.front()) ? IdentifierType::DW :
-                    isWordInVector(registers32Vector() , operands.front()) ? IdentifierType::DD :
-                    IdentifierType::INCORRECT_IDENTIFIER;
-        return identifier("" , type, operands.back()).isCorrectIdentifierValue();
+        return identifier("" , IdentifierType::DD, operands.back()).isCorrectIdentifierValue();
     }
     bool Add::isCorrectFirstOperand(size_t line) {
         stringsVector firstOperand{operands.front()};
         splitByDelimiters(":[*]" , firstOperand);
         return isCorrectAddressExpression(firstOperand , line);
     }
-    size_t Add::getNumberOfByte(size_t line) {
-        return 0;
+    int Add::getNumberOfByte(size_t line) {
+        userIdentifiers::getMapOfAdressExpression()[line] = operands.front();
+        int value = 2 + (std::tolower(operands.back().back()) == 'h' ? 4 : 2);
+        return value;
     }
     /************   Add     *************/
 
@@ -479,7 +528,7 @@ namespace assembler{
     bool Cwde::isCorrectOperands(size_t line) {
         return operands.empty();
     };
-    size_t Cwde::getNumberOfByte(size_t line) {
+    int Cwde::getNumberOfByte(size_t line) {
         return 2;
     }
     /************   Cwde     *************/
@@ -489,7 +538,7 @@ namespace assembler{
                isWordInVector({"small"} , operands[1]) &&
                operands[2] == "}";
     };
-    size_t Model::getNumberOfByte(size_t line) {
+    int Model::getNumberOfByte(size_t line) {
         return 0;
     }
     /************   Model     *************/
