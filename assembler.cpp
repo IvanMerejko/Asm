@@ -90,6 +90,9 @@ namespace assembler{
         }
         switch (lastLetter) {
             case 'h':
+                if(tmp.front() != '0'){
+                    return false;
+                }
                 for (const auto &it : tmp.substr(0, tmp.size() - 1)) {
                     if (auto one_value = static_cast<int>(it);  one_value < 48 ||
                                                                 (one_value > 57 && one_value < 65) ||
@@ -417,7 +420,9 @@ namespace assembler{
         if(operands.size() != 3){
             return false;
         }
-        return isCorrectFirstOperand() && isCorrectSecondOperand() && operands[1] == ",";
+        return  (isWordInVector(registers32Vector() , operands.front()) && isWordInVector(registers32Vector() , operands.back())) ||
+                (isWordInVector(registers16Vector() , operands.front()) && isWordInVector(registers16Vector() , operands.back())) ||
+                (isWordInVector(registers8Vector() , operands.front()) && isWordInVector(registers8Vector() , operands.back()));
     };
     bool Or::isCorrectFirstOperand() {
         return isRegister(operands.front());
