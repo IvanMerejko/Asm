@@ -49,6 +49,10 @@ private:
     size_t getBytesForUserIdetifier(const std::string& ident);
     size_t getBytesForRegister(const std::string& reg);
     bool isDD_Identifier(const std::string& ident);
+    void printAllIdentifiers() const noexcept ;
+    void addValueForALlAddressFromLine(int start_line , int value);
+    int fromStringToInt(const std::string& string_Value);
+    int getAddCommandSpecialBytes(const std::string& name , int tmp);
 };
 
 

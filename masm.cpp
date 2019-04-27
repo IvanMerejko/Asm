@@ -23,7 +23,7 @@ void masm::createListingFile() {
 }
 void masm::secondView() {
     std::ifstream asmFile(asmFileName );
-
+    size_t numberOfErrors{0};
     if(!asmFile.is_open()){
         std::cout << "No file";
     }
@@ -56,10 +56,13 @@ void masm::secondView() {
             std::cout << std::endl;
         }
         if(!oneStringFromAsmFile.empty() && infoAboutLines[currentLine].isErrorInLine){
+            ++numberOfErrors;
             std::cout << "Error" << std::endl;
         }
 
+
     }
+    std::cout << "Number of Errors: " << numberOfErrors << '\n';
 }
 void masm::firstView() {
     std::ifstream asmFile(asmFileName);
@@ -246,7 +249,7 @@ bool masm::takeLabelsFromLine() {
         if(wordsInString.front().empty()){
             return true;
         }
-        if( _code.pushLabel(std::move(assembler::label(wordsInString.front().substr(0 ,wordsInString.front().size()) , 0))) ){
+        if( _code.pushLabel(std::move(assembler::label(wordsInString.front().substr(0 ,wordsInString.front().size()) , infoAboutLines[line-1].address))) ){
             return true;
         };
         for(size_t i = 0 ; i < wordsInString.size() - 1 ; ++i) {
@@ -264,10 +267,19 @@ void masm::checkAllUsedButNotDeclaredIdentifiers(){
 
     for(const auto& [name , lines] : assembler::userIdentifiers::getUsedLabels()){
         if( !_code.isLabelDeclared(name)){
-            for(const auto line : lines){
-                infoAboutLines[line].isErrorInLine = true;
+            for(const auto& tmp : lines){
+                infoAboutLines[tmp].isErrorInLine = true;
             }
+        } else{
+            for(const auto& tmp : lines){
+                const auto distance = infoAboutLines[tmp].address - _code.getLabelByName(name).position;
+                if( distance < 128 && distance > 0){
+                    addValueForALlAddressFromLine(line , 2);
+                }
+            }
+
         }
+
     }
 
     for(const auto& [name , lines] : assembler::userIdentifiers::getUsedIdentifiers()){
@@ -289,19 +301,33 @@ void masm::currentAddressEqualsToPreviousAddress() {
  *
  * */
 void masm::createAddress() {
-    for(const auto& [line , string] : assembler::userIdentifiers::getMapOfAdressExpression()){
+    for(auto& [line , string] : assembler::userIdentifiers::getMapOfAdressExpression()){
         if(!infoAboutLines[line].isErrorInLine){
+
+            int value {0};
+            auto add_symbol_pos = string.find('#');
+            std::string add_value;
+            if(add_symbol_pos != std::string::npos){
+                add_value = string.substr(add_symbol_pos + 1);
+                string = string.substr(0 , add_symbol_pos );
+
+            }
             assembler::stringsVector operands{string};
             assembler::splitByDelimiters(":[]*" , operands);
-            int value {0};
             switch (operands.size()){
                 case 1:
                     value = getBytesForUserIdetifier(operands.front());
+                    if(add_symbol_pos != std::string::npos ){
+                        value += getAddCommandSpecialBytes(operands.front() , fromStringToInt(add_value));
+                    }
                     break;
                 case 3:
                     value = 3;
                     if(isDD_Identifier(operands.back())){
                         value += 1;
+                    }
+                    if(add_symbol_pos != std::string::npos ){
+                        value += getAddCommandSpecialBytes(operands.back() , fromStringToInt(add_value));
                     }
                     break;
                 case 8 :
@@ -310,8 +336,11 @@ void masm::createAddress() {
                     if(isDD_Identifier(operands[2])){
                         value += 1;
                     }
+                    if(add_symbol_pos != std::string::npos ){
+                        value += getAddCommandSpecialBytes(operands[2], fromStringToInt(add_value));
+                        value += 1;
+                    }
                     break;
-                case 4 :
                 case 6 :
                     if(assembler::isWordInVector(assembler::segmentRegisters() , operands.front())){
                         value = 1;
@@ -320,21 +349,20 @@ void masm::createAddress() {
                             value += 1;
                         }
                     } else {
-                        value += getBytesForRegister(operands[2]);
+                        value += 5;
                         if(isDD_Identifier(operands.front())){
                             value += 1;
                         }
                     }
-
+                    if(add_symbol_pos != std::string::npos ){
+                        value += getAddCommandSpecialBytes(operands.front(), fromStringToInt(add_value));
+                        value += 1;
+                    }
                     break;
             }
-            for(size_t i = line ; i < infoAboutLines.size() ; ++i){
-                infoAboutLines[i + 1].address += value;
-            }
+            addValueForALlAddressFromLine(line , value);
         } else {
-            for(size_t i = line ; i < infoAboutLines.size() ; ++i){
-                infoAboutLines[i + 1].address = infoAboutLines[i + 1].address+-2;
-            }
+            addValueForALlAddressFromLine(line , -2);
             //infoAboutLines[line + 1].address = infoAboutLines[line].address;
         }
 
@@ -352,4 +380,44 @@ bool masm::isDD_Identifier(const std::string &ident) {
     return _data.isDeclaredIdentifier(ident) ?
                 _data.getIdentifier(ident).getType() == assembler::IdentifierType::DD  :
                  _code.getIdentifier(ident).getType() == assembler::IdentifierType::DD;
+}
+
+void masm::printAllIdentifiers() const noexcept {
+/*    for(const auto it : _data.getAllIdentifiers()){
+        //std::cout << it.
+    }*/
+}
+void masm::addValueForALlAddressFromLine(int start_line, int value) {
+    for(size_t i = start_line ; i < infoAboutLines.size() ; ++i){
+        infoAboutLines[i + 1].address += value;
+    }
+}
+int masm::fromStringToInt(const std::string &string_Value) {
+    switch(std::tolower(string_Value.back())){
+        case 'h':
+            return assembler::fromHexToDec(string_Value);
+        case 'b':
+            return assembler::fromBinaryToDec(string_Value);
+        default :
+            return std::stoi(string_Value);
+    }
+}
+int masm::getAddCommandSpecialBytes(const std::string &name, int tmp) {
+    int value{0};
+    if(isDD_Identifier(name)){
+        if( tmp > assembler::MAX_DB_VALUE){
+            value += 4;
+        } else {
+            value += 1;
+        }
+    } else {
+        if(tmp < assembler::MAX_DB_VALUE){
+            value += 1;
+        } else if(tmp < assembler::MAX_DW_VALUE) {
+            value +=2;
+        } else {
+            value += 4;
+        }
+    }
+    return value;
 }

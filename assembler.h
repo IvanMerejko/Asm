@@ -20,7 +20,8 @@
 namespace assembler{
 
 
-    std::string fromHexToDec(const std::string& value);
+    int fromHexToDec(const std::string& value);
+    int fromBinaryToDec(const std::string& value);
     struct identifier {
     public:
         friend bool operator<(const identifier &lft, const identifier &rht);
@@ -47,8 +48,8 @@ namespace assembler{
     struct label{
         friend bool operator <(const label& lft , const label& rht);
         std::string name;
-        size_t position;
-        label(std::string name , size_t pos)
+        int position;
+        label(std::string name , int pos)
                 :name{std::move(name)} , position{pos}{};
     };
     struct segment{
@@ -64,6 +65,7 @@ namespace assembler{
         virtual void printIdentifiers();
         virtual bool isDeclaredIdentifier(const std::string& identifier)const;
         virtual size_t getIdentifierNumbersOfByte(const std::string& id);
+//        const std::set<identifier>& & getAllIdentifiers() const &;
     };
     struct data : public segment{
     };
@@ -74,6 +76,7 @@ namespace assembler{
         code() = default;
         bool pushLabel(label&& label) ;
         bool isLabelDeclared(const std::string& label_name) const;
+        const label& getLabelByName(const std::string& label_name) const;
     };
 
     bool isDeclaredIdentifier(const std::string& identifier , const data& _data , const code& _code);
@@ -224,6 +227,7 @@ namespace assembler{
         int  getNumberOfByte(size_t) override ;
         bool isCorrectFirstOperand(size_t line);
         bool isCorrectSecondOperand();
+
     };
     class Cwde : public Command{
     public:

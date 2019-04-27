@@ -17,44 +17,11 @@ namespace assembler{
      *  address expresion numbers of byte
      *
      * */
-    std::string fromBinaryToDec(const std::string& value){
-        int result{0};
-        for(int i {static_cast<int>(value.size() - 2)} , j{0} ; i >= 0 ; --i , ++j){
-            result += static_cast<int>(std::pow(2 , j) * (static_cast<int>(value[i]) - 48));
-        }
-        return std::to_string(result);
+    int fromBinaryToDec(const std::string& value){
+        return std::stoi(value , nullptr , 2);
     }
-    std::string fromHexToDec(const std::string& value){
-        std::string number{value.substr(0 , value.size() - 1)};
-        size_t length = number.size();
-        std::transform(number.begin() , number.end() , number.begin() , ::tolower);
-        int result{0};
-        for(int i = length - 1 , j {0} ; i >= 0  ; --i , ++j){
-            switch (number[i]){
-                case 'a':
-                    result += static_cast<int>(std::pow(16 , j)) * 10;
-                    break;
-                case 'b':
-                    result += static_cast<int>(std::pow(16 , j)) * 11;
-                    break;
-                case 'c':
-                    result += static_cast<int>(std::pow(16 , j)) * 12;
-                    break;
-                case 'd':
-                    result += static_cast<int>(std::pow(16 , j)) * 13;
-                    break;
-                case 'e':
-                    result += static_cast<int>(std::pow(16 , j)) * 14;
-                    break;
-                case 'f':
-                    result += static_cast<int>(std::pow(16 , j)) * 15;
-                    break;
-                default:
-                    result += static_cast<int>(std::pow(16 , j)) *  (static_cast<int>(number[i]) - 48) ;
-
-            }
-        }
-        return std::to_string(result);
+    int fromHexToDec(const std::string& value){
+        return std::stoi(value , nullptr , 16);
     }
 
     void identifier::setValue(const std::string &value) {
@@ -100,7 +67,7 @@ namespace assembler{
                                                                 one_value > 102) {
                         return false;
                     }
-                    if(!isCorrectRangesForType(this->type , fromHexToDec(tmp))){
+                    if(!isCorrectRangesForType(this->type , std::to_string(fromHexToDec(tmp)))){
                         return false;
                     }
                 }
@@ -110,7 +77,7 @@ namespace assembler{
                     if (auto one_value = static_cast<int>(it); one_value < 48 || one_value > 49) {
                         return false;
                     }
-                    if(!isCorrectRangesForType(this->type , fromBinaryToDec(tmp))){
+                    if(!isCorrectRangesForType(this->type , std::to_string(fromBinaryToDec(tmp)))){
                         return false;
                     }
 
@@ -150,6 +117,9 @@ namespace assembler{
     void segment::open() {
         isCreate = true;
     }
+/*    const std::set<identifier>& segment::getAllIdentifiers() const &{
+        return this->identifiers;
+    }*/
     bool segment::push(assembler::identifier &&identifier1) {
         auto it = identifiers.insert(std::move(identifier1));
         return !it.second;
@@ -174,6 +144,12 @@ namespace assembler{
      *
      *
      * */
+    const label& code::getLabelByName(const std::string &label_name) const {
+        auto it = std::find_if(labels.begin() , labels.end() , [&label_name](const label& curLabel){
+            return curLabel.name == label_name;
+        });
+        return *it;
+    }
     bool code::isLabelDeclared(const std::string &label_name) const {
         return std::find_if(labels.cbegin() , labels.cend(), [&label_name](const label& currectLabel){
             return currectLabel.name == label_name;
@@ -465,8 +441,14 @@ namespace assembler{
             string += operands[i];
         }
         userIdentifiers::getMapOfAdressExpression()[line] = string;
-
-        return  2;
+        /*
+         * for exp ident[edi*const] must return 3
+         * for another exp - 2
+         *
+         * */
+        stringsVector tmp{operands.back()};
+        splitByDelimiters(":[]*" , tmp);
+        return  tmp.size() > 5 ? 3 : 2;
     }
     /************   Cmp     *************/
 
@@ -523,9 +505,15 @@ namespace assembler{
         return isCorrectAddressExpression(firstOperand , line);
     }
     int Add::getNumberOfByte(size_t line) {
-        userIdentifiers::getMapOfAdressExpression()[line] = operands.front();
-        int value = 2 + (std::tolower(operands.back().back()) == 'h' ? 4 : 2);
-        return value;
+       /*
+        * for add we must include symbol '#' because
+        * number of byte depends on value (second operand of command)
+        *
+        *
+        * */
+        userIdentifiers::getMapOfAdressExpression()[line] = operands.front() + "#" + operands.back();
+
+        return 2;
     }
     /************   Add     *************/
 
@@ -771,21 +759,8 @@ namespace assembler{
                 } else {
                     return false;
                 }
-            case 4:
-                if(operands[1] == "[" && operands.back() == "]" && isRegister(operands[2]) ){
-                    userIdentifiers::pushIdentifier(operands.front() ,line);
-                    return true;
-                } else {
-                    return false;
-                }
             case 6:
 
-                if(isWordInVector(segmentRegisters(), operands.front())){
-                    if(operands[3] == "[" && operands.back() == "]" && isRegister(operands[4]) ) {
-                        userIdentifiers::pushIdentifier(operands[2], line);
-                        return true;
-                    }
-                } else {
                         if(isCorrectExpressionBetweenParentheses({operands[1] ,
                                                                   operands[2] ,
                                                                   operands[3] ,
@@ -796,7 +771,7 @@ namespace assembler{
                         } else {
                             return false;
                         }
-                    }
+
 
             case 8:
                 if(isWordInVector(segmentRegisters() , operands.front()) && operands[1] == ":" &&
@@ -818,8 +793,8 @@ namespace assembler{
     }
     bool isCorrectExpressionBetweenParentheses(const stringsVector & expressionOperands){
         return expressionOperands[0] == "[" && expressionOperands.back() == "]" &&
-               (isWordInVector(registers16Vector() , expressionOperands[1]) || isWordInVector(registers32Vector() , expressionOperands[1])) &&
-               expressionOperands[2] == "*" && isWordInVector({"2" , "4" , "8" , "16"} , expressionOperands[3]);
+               isWordInVector(registers32Vector() , expressionOperands[1]) &&
+               expressionOperands[2] == "*" && isWordInVector({"1","2" , "4" , "8" , "16"} , expressionOperands[3]);
     }
     std::unique_ptr<Command> getPointerForCommandByName(std::string_view command , const std::string& operands){
         size_t numberOfCommand = 0;
