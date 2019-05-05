@@ -10,11 +10,17 @@
 #include "assembler.h"
 
 class masm {
+    enum class TypeOfLine{
+        COMMAND ,
+        IDENTIFIER ,
+        NO_IMPORTANT
+    };
 private:
+
     struct info{
         bool isErrorInLine;
         int address;
-        assembler::WordType type;
+        TypeOfLine type;
     };
 public:
     std::string asmFileName;

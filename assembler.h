@@ -39,11 +39,14 @@ namespace assembler{
 
         void setValue(const std::string &value);
         std::string getName() const;
+        std::string getValue() const;
         IdentifierType getType() const;
+
         int  getNumberOfByte(size_t) const;
         bool isCorrectIdentifierValue() const;
         bool isCorrectRangesForType(IdentifierType type , const std::string& value) const;
         void print() const;
+
     };
     struct label{
         friend bool operator <(const label& lft , const label& rht);
@@ -52,6 +55,7 @@ namespace assembler{
         label(std::string name , int pos)
                 :name{std::move(name)} , position{pos}{};
     };
+    std::string getNameOfIdentifierType(const identifier& cur_ident);
     struct segment{
 
     protected:
@@ -65,7 +69,7 @@ namespace assembler{
         virtual void printIdentifiers();
         virtual bool isDeclaredIdentifier(const std::string& identifier)const;
         virtual size_t getIdentifierNumbersOfByte(const std::string& id);
-//        const std::set<identifier>& & getAllIdentifiers() const &;
+        const std::set<identifier>&  getAllIdentifiers() const ;
     };
     struct data : public segment{
     };

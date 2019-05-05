@@ -20,6 +20,7 @@ void masm::createListingFile() {
     checkAllUsedButNotDeclaredIdentifiers();
     createAddress();
     secondView();
+    printAllIdentifiers();
 }
 void masm::secondView() {
     std::ifstream asmFile(asmFileName );
@@ -44,10 +45,25 @@ void masm::secondView() {
             assembler::stringsVector vector;
             std::string help{oneStringFromAsmFile};
             assembler::createVectorOfWordsFromString(help , vector);
-            assembler::splitByDelimiters("{}", vector);
+            //assembler::splitByDelimiters("{}", vector);
             if(!assembler::isWordInVector({"end"} , oneStringFromAsmFile) && !assembler::isWordInVector({"model"} , vector.front())){
-                std::cout << std::setw(6) << std::hex << std::uppercase << std::left <<infoAboutLines[currentLine].address <<
-                          std::setw(20) << std::left << tmp << std::endl;
+
+                std::cout << std::setw(6) << std::hex << std::uppercase << std::left <<infoAboutLines[currentLine].address;
+                if(!infoAboutLines[currentLine].isErrorInLine){
+                    switch (infoAboutLines[currentLine].type){
+                        case TypeOfLine::COMMAND:
+                            std::cout << std::setw(6) << "COMMAND";
+                            break;
+                        case TypeOfLine::IDENTIFIER:
+
+                            std::cout << std::setw(6) << "IDENTIFIER";
+                            break;
+                        case TypeOfLine::NO_IMPORTANT:
+                            std::cout << std::setw(6) << "NO_IMPORTANT";
+                            break;
+                    }
+                }
+                std::cout <<  std::setw(20) << std::left << tmp << std::endl;
             } else {
                 std::cout  << tmp << std::endl ;
             }
@@ -80,8 +96,9 @@ void masm::firstView() {
         if(wordsInString.empty()){
             infoAboutLines[line].isErrorInLine = false;
             infoAboutLines[line + 1].address = infoAboutLines[line].address;
+            infoAboutLines[line].type = TypeOfLine::NO_IMPORTANT;
             continue;
-        };
+        }
         /*
          *              LEXEM PARSING FOR FIRST TASK
          * */
@@ -96,6 +113,7 @@ void masm::firstView() {
         if( (infoAboutLines[line].isErrorInLine = takeLabelsFromLine()) || wordsInString.empty()) {
             wordsInString.clear();
             infoAboutLines[line + 1].address = infoAboutLines[line].address;
+            infoAboutLines[line].type = TypeOfLine::NO_IMPORTANT;
             continue;
         }
 
@@ -146,11 +164,13 @@ void masm::workWithCommand() {
     if(tmp == assembler::instructionsVector().front()){ // .data
         if((infoAboutLines[line].isErrorInLine =  _data.isOpen() )) {
             return;
-        };
+        }
         _data.open();
         lastOpenedSegment = "data";
         infoAboutLines[line].address = 0;
+        infoAboutLines[line].type = TypeOfLine::NO_IMPORTANT;
         infoAboutLines[line + 1].address = 0;
+
         return;
     }
     /*
@@ -163,6 +183,7 @@ void masm::workWithCommand() {
         }
         _code.open();
         lastOpenedSegment = "code";
+        infoAboutLines[line].type = TypeOfLine::NO_IMPORTANT;
         infoAboutLines[line].address = 0;
         infoAboutLines[line + 1].address = 0;
         return;
@@ -171,6 +192,7 @@ void masm::workWithCommand() {
     if(tmp == assembler::instructionsVector().at(2)){ // .end
         endOfFile = true;
         infoAboutLines[line].address = -1;
+        infoAboutLines[line].type = TypeOfLine::NO_IMPORTANT;
         return;
     }
     if((infoAboutLines[line].isErrorInLine = !_code.isOpen()) && !assembler::isWordInVector({"model"} , wordsInString.front()) ){
@@ -186,6 +208,7 @@ void masm::workWithCommand() {
     infoAboutLines[line].isErrorInLine = !command->isCorrectOperands(line);
     auto value = command->getNumberOfByte(line);
     infoAboutLines[line + 1].address = infoAboutLines[line].address + value;
+    infoAboutLines[line].type = TypeOfLine::COMMAND;
     // infoAboutLines[line + 1].address = infoAboutLines[line].address ;
 }
 void masm::workWithIdentifier() {
@@ -225,8 +248,11 @@ void masm::workWithIdentifier() {
     /*
      * if we can`t push identifier - ERROR
      * */
-    infoAboutLines[line + 1].address = infoAboutLines[line].address + new_identifier.getNumberOfByte(line);
-    infoAboutLines[line].isErrorInLine = pushIdentifier(std::move(new_identifier)) ;
+    auto numberOfBytes = new_identifier.getNumberOfByte(line);
+    if(  !(infoAboutLines[line].isErrorInLine = pushIdentifier(std::move(new_identifier)))){
+        infoAboutLines[line + 1].address = infoAboutLines[line].address + numberOfBytes;
+        infoAboutLines[line].type = TypeOfLine::IDENTIFIER;
+    }
 }
 bool masm::pushIdentifier(assembler::identifier&& new_identifier) {
     if(lastOpenedSegment == "data"){
@@ -251,7 +277,7 @@ bool masm::takeLabelsFromLine() {
         }
         if( _code.pushLabel(std::move(assembler::label(wordsInString.front().substr(0 ,wordsInString.front().size()) , infoAboutLines[line-1].address))) ){
             return true;
-        };
+        }
         for(size_t i = 0 ; i < wordsInString.size() - 1 ; ++i) {
             wordsInString.at(i) = wordsInString.at(i+1);
         }
@@ -383,9 +409,19 @@ bool masm::isDD_Identifier(const std::string &ident) {
 }
 
 void masm::printAllIdentifiers() const noexcept {
-/*    for(const auto it : _data.getAllIdentifiers()){
-        //std::cout << it.
-    }*/
+    std::cout << "data segmets: \n";
+    for(const auto& it : _data.getAllIdentifiers()){
+        std::cout << it.getName()                           << std::setw(10)
+                  << assembler::getNameOfIdentifierType(it) << std::setw(10)
+                  << it.getValue() << '\n';
+    }
+
+    std::cout << "code segmets: \n";
+    for(const auto& it : _code.getAllIdentifiers()){
+        std::cout << it.getName()                           << std::setw(10)
+                  << assembler::getNameOfIdentifierType(it) << std::setw(10)
+                  << it.getValue() << '\n';
+    }
 }
 void masm::addValueForALlAddressFromLine(int start_line, int value) {
     for(size_t i = start_line ; i < infoAboutLines.size() ; ++i){

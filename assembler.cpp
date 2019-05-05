@@ -26,9 +26,12 @@ namespace assembler{
 
     void identifier::setValue(const std::string &value) {
         this->value = value;
-    };
+    }
     std::string identifier::getName() const {
         return name;
+    }
+    std::string identifier::getValue() const {
+        return value;
     }
     int identifier::getNumberOfByte(size_t line) const {
         switch (type){
@@ -38,6 +41,16 @@ namespace assembler{
                 return 2;
             case IdentifierType::DD:
                 return 3;
+        }
+    }
+    std::string getNameOfIdentifierType(const identifier& cur_ident){
+        switch (cur_ident.getType()){
+            case IdentifierType::DB:
+                return "DB";
+            case IdentifierType::DW:
+                return "DW";
+            case IdentifierType::DD:
+                return "DD";
         }
     }
     identifier segment::getIdentifier(const std::string &name) const {
@@ -97,7 +110,7 @@ namespace assembler{
                 break;
         }
         return true;
-    };
+    }
     bool identifier::isCorrectRangesForType(IdentifierType type , const std::string &value) const {
         switch (type){
             case IdentifierType::DB:
@@ -113,7 +126,7 @@ namespace assembler{
 
     bool segment::isOpen() const {
         return isCreate;
-    };
+    }
     void segment::open() {
         isCreate = true;
     }
@@ -139,6 +152,9 @@ namespace assembler{
         return std::find_if(identifiers.begin() , identifiers.end() , [&id](const identifier& cur_iden){
             return cur_iden.getName() == id;
         })->getType() == IdentifierType::DD ? 3 : 2;
+    }
+    const std::set<identifier>& segment::getAllIdentifiers() const {
+        return identifiers;
     }
     /*                  TODO
      *
@@ -269,7 +285,7 @@ namespace assembler{
         return isWordInVector(registers8Vector()  , string) ||
                isWordInVector(registers16Vector() , string) ||
                isWordInVector(registers32Vector() , string);
-    };
+    }
     bool isReservedWord(std::string_view word) {
         return isWordInVector(registers16Vector() , word)       ||
                isWordInVector(registers8Vector() , word)        ||
