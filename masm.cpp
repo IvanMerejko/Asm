@@ -43,21 +43,54 @@ void masm::secondView() {
                                    oneStringFromAsmFile.end());
         if(!oneStringFromAsmFile.empty()){
             assembler::stringsVector vector;
-            std::string help{oneStringFromAsmFile};
+            std::string help{tmp};
             assembler::createVectorOfWordsFromString(help , vector);
+
+            std::cout << '\n';
             //assembler::splitByDelimiters("{}", vector);
             if(!assembler::isWordInVector({"end"} , oneStringFromAsmFile) && !assembler::isWordInVector({"model"} , vector.front())){
 
                 std::cout << std::setw(6) << std::hex << std::uppercase << std::left <<infoAboutLines[currentLine].address;
                 if(!infoAboutLines[currentLine].isErrorInLine){
+                    std::string operands ;
+                    for(int i = 1 ; i < vector.size() ; ++i){
+                        operands += vector[i];
+                    }
+
                     switch (infoAboutLines[currentLine].type){
                         case TypeOfLine::COMMAND:
-                            std::cout << std::setw(6) << "COMMAND";
-                            break;
-                        case TypeOfLine::IDENTIFIER:
 
-                            std::cout << std::setw(6) << "IDENTIFIER";
+
+                            std::cout << std::setw(6) << assembler::getPointerForCommandByName(vector[0] , operands)->getBites(_data , _code) ;
                             break;
+                        case TypeOfLine::IDENTIFIER: {
+                            std::string hexCodeOfValue = assembler::getHexCodForValue(
+                                    assembler::identifier("", assembler::IdentifierType::INCORRECT_IDENTIFIER,
+                                                          vector.back()).getValueToInt());
+                            std::string outValue;
+                            switch (assembler::identifierType(vector.at(1))) {
+                                case assembler::IdentifierType::DB:
+                                    outValue = hexCodeOfValue.substr(0, 2);
+                                    std::cout <<  outValue;
+                                    break;
+                                case assembler::IdentifierType::DW:
+                                    outValue = hexCodeOfValue.substr(0, 4);
+                                    std::cout << outValue;
+                                    break;
+                                case assembler::IdentifierType::DD:
+                                    outValue = hexCodeOfValue;
+                                    for(int i = 0 ; i < outValue.size() ; i+=2){
+                                        char letter = outValue[i];
+                                        outValue[i] = outValue[i+1];
+                                        outValue[i+1] = letter;
+                                    }
+                                    std::reverse(outValue.begin() , outValue.end());
+                                    std::cout << outValue;
+                                    break;
+
+                            }
+                            break;
+                        }
                         case TypeOfLine::NO_IMPORTANT:
                             std::cout << std::setw(6) << "NO_IMPORTANT";
                             break;
@@ -78,6 +111,7 @@ void masm::secondView() {
 
 
     }
+    std::cout << "\n----------------------------------------------------------\n";
     std::cout << "Number of Errors: " << numberOfErrors << '\n';
 }
 void masm::firstView() {
@@ -298,9 +332,12 @@ void masm::checkAllUsedButNotDeclaredIdentifiers(){
             }
         } else{
             for(const auto& tmp : lines){
+
                 const auto distance = infoAboutLines[tmp].address - _code.getLabelByName(name).position;
-                if( distance < 128 && distance > 0){
-                    addValueForALlAddressFromLine(line , 2);
+                std::cout <<  infoAboutLines[tmp].address << "           " << _code.getLabelByName(name).position  << '\n' ;
+
+                if( distance >= 80 || distance <= 0){
+                    addValueForALlAddressFromLine(tmp , 2);
                 }
             }
 

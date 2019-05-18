@@ -9,7 +9,22 @@
 #include <cmath>
 
 #include "assembler.h"
+#include <map>
 namespace assembler{
+
+    std::string getHexCodForValue(int value){
+        auto ptr = (unsigned char *) &value;
+        std::stringstream stream;
+        int oneSymbol;
+        for (int i = 0; i < 4; i++){
+            oneSymbol = *(ptr + i);
+            stream << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << oneSymbol ;
+        }
+        std::string hexCode;
+        stream >> hexCode;
+
+        return hexCode;
+    }
 
     /*
      *  TODO
@@ -17,6 +32,57 @@ namespace assembler{
      *  address expresion numbers of byte
      *
      * */
+    int getOpCod(const std::string& reg){
+        std::string tmp{reg};
+        std::transform(tmp.begin() , tmp.end() , tmp.begin() , ::tolower);
+        static std::map<std::string , int> map{
+            {"al" , 0} , {"ax" , 0} , {"eax" , 0} ,
+            {"cl" , 1} , {"cx" , 1} , {"ecx" , 1} ,
+            {"dl" , 2} , {"dx" , 2} , {"edx" , 2} ,
+            {"bl" , 3} , {"bx" , 3} , {"ebx" , 3} ,
+            {"ah" , 4} , {"sp" , 4} , {"esp" , 4} ,
+            {"ch" , 5} , {"bp" , 5} , {"ebp" , 5} ,
+            {"dh" , 6} , {"si" , 6} , {"esi" , 6} ,
+            {"bh" , 7} , {"di" , 7} , {"edi" , 7} ,
+
+        };
+        return map[reg];
+    }
+    std::string fromDecToHex(int value){
+        switch (value){
+            case 1:
+                return "1";
+            case 2:
+                return "2";
+            case 3:
+                return "3";
+            case 4:
+                return "4";
+            case 5:
+                return "5";
+            case 6:
+                return "6";
+            case 7:
+                return "7";
+            case 8:
+                return "8";
+            case 9:
+                return "9";
+            case 10:
+                return "A";
+            case 11:
+                return "B";
+            case 12:
+                return "C";
+            case 13:
+                return "D";
+            case 14:
+                return "E";
+            case 15:
+                return "F";
+
+        }
+    }
     int fromBinaryToDec(const std::string& value){
         return std::stoi(value , nullptr , 2);
     }
@@ -53,6 +119,23 @@ namespace assembler{
                 return "DD";
         }
     }
+    double identifier::getValueToInt() const {
+        auto lastLetter = static_cast <char> ( std::tolower(static_cast<unsigned char> (value.back())));
+        switch (lastLetter) {
+            case 'h':
+
+                return std::stod(value.substr(0 , value.size() - 1) , nullptr );
+            case 'b':
+
+                return std::stod(value.substr(0 , value.size() - 1) , nullptr );
+            case 'd':
+                return std::stod(value.substr(0 , value.size() - 1) , nullptr );
+            default:
+                return std::stod(value.substr(0 , value.size()) , nullptr );
+
+        }
+
+    }
     identifier segment::getIdentifier(const std::string &name) const {
         return *std::find_if(identifiers.begin() , identifiers.end(), [&name](const identifier& curIdent){
             return curIdent.getName() == name;
@@ -65,6 +148,7 @@ namespace assembler{
         auto positionOfMinusInValue = std::find(value.begin(), value.end(), '-');
         auto tmp = positionOfMinusInValue == value.begin() ? value.substr(1, value.size()) : value;
         auto lastLetter = static_cast <char> ( std::tolower(static_cast<unsigned char> (value.back())));
+        bool isOneDot = false;
         if(tmp.size() > 15){
             return false;
         }
@@ -74,6 +158,7 @@ namespace assembler{
                     return false;
                 }
                 for (const auto &it : tmp.substr(0, tmp.size() - 1)) {
+
                     if (auto one_value = static_cast<int>(it);  one_value < 48 ||
                                                                 (one_value > 57 && one_value < 65) ||
                                                                 (one_value > 70 && one_value < 97) ||
@@ -87,6 +172,14 @@ namespace assembler{
                 break;
             case 'b':
                 for (const auto &it : tmp.substr(0, tmp.size() - 2)) {
+                    if( static_cast<int>(it) == 46){
+                        if(!isOneDot){
+                            isOneDot = true;
+                            continue;
+                        } else {
+                            return false;
+                        }
+                    }
                     if (auto one_value = static_cast<int>(it); one_value < 48 || one_value > 49) {
                         return false;
                     }
@@ -100,6 +193,14 @@ namespace assembler{
             default:
                 if (tmp.empty()) return false;
                 for (const auto &it : tmp) {
+                    if( static_cast<int>(it) == 46){
+                        if(!isOneDot){
+                            isOneDot = true;
+                            continue;
+                        } else {
+                            return false;
+                        }
+                    }
                     if (auto one_value = static_cast<int>(it);  one_value < 48 || one_value > 57) {
                         return false;
                     }
@@ -354,6 +455,9 @@ namespace assembler{
     bool Mov::isCorrectFirstOperand() {
         return isRegister(operands.front());
     }
+    std::string Mov::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+        return "";
+    }
     /*
      *  TODO
      *
@@ -382,6 +486,17 @@ namespace assembler{
     int Imul::getNumberOfByte(size_t line) {
         return isWordInVector(registers32Vector() , operands.front()) ? 3 : 2;
     }
+    std::string Imul::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+        std::string returnValue;
+        if(isWordInVector(registers8Vector() , operands[0])){
+            returnValue = "F6 E";
+        } else {
+            returnValue = "F7 E" ;
+        }
+        returnValue += fromDecToHex(8 + getOpCod(operands[0]));
+
+        return returnValue;
+    }
     /************   Imul     *************/
 
     /************   Idiv     *************/
@@ -404,6 +519,9 @@ namespace assembler{
         }
         return 2;
 
+    }
+    std::string Idiv::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+        return "";
     }
     /************   Idiv     *************/
 
@@ -430,6 +548,9 @@ namespace assembler{
             return 2;
         }
 
+    }
+    std::string Or::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+        return "";
     }
     /************   Or     *************/
 
@@ -466,6 +587,9 @@ namespace assembler{
         splitByDelimiters(":[]*" , tmp);
         return  tmp.size() > 5 ? 3 : 2;
     }
+    std::string Cmp::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+        return "";
+    }
     /************   Cmp     *************/
 
     /************   Jng     *************/
@@ -478,7 +602,10 @@ namespace assembler{
     };
     int Jng::getNumberOfByte(size_t line) {
 
-        return 4;
+        return 2;
+    }
+    std::string Jng::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+        return "";
     }
     /************   Jng     *************/
 
@@ -501,6 +628,9 @@ namespace assembler{
 
         userIdentifiers::getMapOfAdressExpression()[line] = operands.front();
         return 2;
+    }
+    std::string And::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+        return "";
     }
     /************   And     *************/
 
@@ -531,6 +661,9 @@ namespace assembler{
 
         return 2;
     }
+    std::string Add::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+        return "";
+    }
     /************   Add     *************/
 
     /************   Cwde     *************/
@@ -539,6 +672,9 @@ namespace assembler{
     };
     int Cwde::getNumberOfByte(size_t line) {
         return 2;
+    }
+    std::string Cwde::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+        return "66| 98";
     }
     /************   Cwde     *************/
     /************   Model     *************/
@@ -550,7 +686,11 @@ namespace assembler{
     int Model::getNumberOfByte(size_t line) {
         return 0;
     }
+    std::string Model::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+        return "";
+    }
     /************   Model     *************/
+
     void removeSpacesAndTabs(std::string& string){
         string.erase(std::remove_if(string.begin() , string.end() , [](char s){
             return s == ' ' || s == '\t';
