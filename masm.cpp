@@ -64,11 +64,16 @@ void masm::secondView() {
                             std::cout << std::setw(6) << assembler::getPointerForCommandByName(vector[0] , operands)->getBites(_data , _code) ;
                             break;
                         case TypeOfLine::IDENTIFIER: {
-                            std::string hexCodeOfValue = assembler::getHexCodForValue(
-                                    assembler::identifier("", assembler::IdentifierType::INCORRECT_IDENTIFIER,
-                                                          vector.back()).getValueToInt());
+
+                            auto type = assembler::identifierType(vector[1]);
+                            auto identifier = assembler::identifier(vector.front(), type,
+                                                                    vector.back());
+                            identifier.isCorrectIdentifierValue();
+                            std::string valueInDec = identifier.getValueInDec();
+                            std::string hexCodeOfValue = assembler::getHexCodForValue(std::stoi( valueInDec,
+                                                                                                nullptr));
                             std::string outValue;
-                            switch (assembler::identifierType(vector.at(1))) {
+                            switch (type) {
                                 case assembler::IdentifierType::DB:
                                     outValue = hexCodeOfValue.substr(0, 2);
                                     std::cout <<  outValue;
@@ -92,7 +97,7 @@ void masm::secondView() {
                             break;
                         }
                         case TypeOfLine::NO_IMPORTANT:
-                            std::cout << std::setw(6) << "NO_IMPORTANT";
+                            //std::cout << std::setw(6) << "NO_IMPORTANT";
                             break;
                     }
                 }
@@ -240,10 +245,15 @@ void masm::workWithCommand() {
     for(size_t i = 1 ; i < wordsInString.size() ; ++i) parameters += wordsInString.at(i) + " ";
     auto command = assembler::getPointerForCommandByName(wordsInString.front() , parameters);
     infoAboutLines[line].isErrorInLine = !command->isCorrectOperands(line);
-    auto value = command->getNumberOfByte(line);
-    infoAboutLines[line + 1].address = infoAboutLines[line].address + value;
-    infoAboutLines[line].type = TypeOfLine::COMMAND;
-    // infoAboutLines[line + 1].address = infoAboutLines[line].address ;
+    if(!infoAboutLines[line].isErrorInLine ){
+        auto value = command->getNumberOfByte(line);
+        infoAboutLines[line + 1].address = infoAboutLines[line].address + value;
+        infoAboutLines[line].type = TypeOfLine::COMMAND;
+    } else{
+        infoAboutLines[line + 1].address = infoAboutLines[line].address ;
+    }
+
+    //
 }
 void masm::workWithIdentifier() {
 
@@ -366,7 +376,9 @@ void masm::currentAddressEqualsToPreviousAddress() {
 void masm::createAddress() {
     for(auto& [line , string] : assembler::userIdentifiers::getMapOfAdressExpression()){
         if(!infoAboutLines[line].isErrorInLine){
-
+            if(string.back() == '&'){
+                string = string.substr(0 , string.size() - 1);
+            }
             int value {0};
             auto add_symbol_pos = string.find('#');
             std::string add_value;
@@ -425,7 +437,12 @@ void masm::createAddress() {
             }
             addValueForALlAddressFromLine(line , value);
         } else {
-            addValueForALlAddressFromLine(line , -2);
+            if(string.back() == '&'){
+                addValueForALlAddressFromLine(line , -3);
+            } else {
+                addValueForALlAddressFromLine(line , -2);
+            }
+
             //infoAboutLines[line + 1].address = infoAboutLines[line].address;
         }
 

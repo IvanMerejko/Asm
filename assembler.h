@@ -20,9 +20,22 @@
 namespace assembler{
 
 
-    std::string getHexCodForValue(int value);
+    template  <typename T>
+    std::string getHexCodForValue(T value){
+        auto ptr = (unsigned char *) &value;
+        std::stringstream stream;
+        int oneSymbol;
+        for (int i = 0; i < 4; i++){
+            oneSymbol = *(ptr + i);
+            stream << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << oneSymbol ;
+        }
+        std::string hexCode;
+        stream >> hexCode;
 
-    int getOpCod(const std::string& reg);
+        return hexCode;
+    }
+    std::string fromDecToBinary(int value);
+    std::string  getOpCod(const std::string& reg);
     int fromHexToDec(const std::string& value);
     std::string  fromDecToHex(int value);
     int fromBinaryToDec(const std::string& value);
@@ -34,9 +47,10 @@ namespace assembler{
         IdentifierType type;
         std::string name;
         std::string value;
+        std::string valueInDec;
 
         identifier(std::string name, IdentifierType type, std::string value)
-                : name{std::move(name)}, type{type}, value{std::move(value)} {};
+                : name{std::move(name)}, type{type}, value{std::move(value)} , valueInDec{} {};
 
         identifier(std::string name, IdentifierType type)
                 : name{std::move(name)}, type{type}, value{""} {};
@@ -44,11 +58,11 @@ namespace assembler{
         void setValue(const std::string &value);
         std::string getName() const;
         std::string getValue() const;
-        double getValueToInt() const;
+        std::string getValueInDec() const;
         IdentifierType getType() const;
 
         int  getNumberOfByte(size_t) const;
-        bool isCorrectIdentifierValue() const;
+        bool isCorrectIdentifierValue() ;
         bool isCorrectRangesForType(IdentifierType type , const std::string& value) const;
         void print() const;
 

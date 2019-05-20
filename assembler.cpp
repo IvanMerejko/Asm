@@ -12,19 +12,7 @@
 #include <map>
 namespace assembler{
 
-    std::string getHexCodForValue(int value){
-        auto ptr = (unsigned char *) &value;
-        std::stringstream stream;
-        int oneSymbol;
-        for (int i = 0; i < 4; i++){
-            oneSymbol = *(ptr + i);
-            stream << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << oneSymbol ;
-        }
-        std::string hexCode;
-        stream >> hexCode;
 
-        return hexCode;
-    }
 
     /*
      *  TODO
@@ -32,18 +20,18 @@ namespace assembler{
      *  address expresion numbers of byte
      *
      * */
-    int getOpCod(const std::string& reg){
+    std::string  getOpCod(const std::string& reg){
         std::string tmp{reg};
         std::transform(tmp.begin() , tmp.end() , tmp.begin() , ::tolower);
-        static std::map<std::string , int> map{
-            {"al" , 0} , {"ax" , 0} , {"eax" , 0} ,
-            {"cl" , 1} , {"cx" , 1} , {"ecx" , 1} ,
-            {"dl" , 2} , {"dx" , 2} , {"edx" , 2} ,
-            {"bl" , 3} , {"bx" , 3} , {"ebx" , 3} ,
-            {"ah" , 4} , {"sp" , 4} , {"esp" , 4} ,
-            {"ch" , 5} , {"bp" , 5} , {"ebp" , 5} ,
-            {"dh" , 6} , {"si" , 6} , {"esi" , 6} ,
-            {"bh" , 7} , {"di" , 7} , {"edi" , 7} ,
+        static std::map<std::string , std::string> map{
+            {"al" , "000"} , {"ax" , "000"} , {"eax" , "000"} ,
+            {"cl" , "001"} , {"cx" , "001"} , {"ecx" , "001"} ,
+            {"dl" , "010"} , {"dx" , "010"} , {"edx" , "010"} ,
+            {"bl" , "011"} , {"bx" , "011"} , {"ebx" , "011"} ,
+            {"ah" , "100"} , {"sp" , "100"} , {"esp" , "100"} ,
+            {"ch" , "101"} , {"bp" , "101"} , {"ebp" , "101"} ,
+            {"dh" , "110"} , {"si" , "110"} , {"esi" , "110"} ,
+            {"bh" , "111"} , {"di" , "111"} , {"edi" , "111"} ,
 
         };
         return map[reg];
@@ -89,6 +77,16 @@ namespace assembler{
     int fromHexToDec(const std::string& value){
         return std::stoi(value , nullptr , 16);
     }
+    std::string fromDecToBinary(int value){
+        std::string result;
+        do
+        {
+            result = result + std::to_string (value % 2);
+            value = value / 2;
+        } while (value > 0);
+        std::reverse(result.begin() , result.end());
+        return result;
+    }
 
     void identifier::setValue(const std::string &value) {
         this->value = value;
@@ -98,6 +96,9 @@ namespace assembler{
     }
     std::string identifier::getValue() const {
         return value;
+    }
+    std::string identifier::getValueInDec() const {
+        return valueInDec;
     }
     int identifier::getNumberOfByte(size_t line) const {
         switch (type){
@@ -119,23 +120,7 @@ namespace assembler{
                 return "DD";
         }
     }
-    double identifier::getValueToInt() const {
-        auto lastLetter = static_cast <char> ( std::tolower(static_cast<unsigned char> (value.back())));
-        switch (lastLetter) {
-            case 'h':
 
-                return std::stod(value.substr(0 , value.size() - 1) , nullptr );
-            case 'b':
-
-                return std::stod(value.substr(0 , value.size() - 1) , nullptr );
-            case 'd':
-                return std::stod(value.substr(0 , value.size() - 1) , nullptr );
-            default:
-                return std::stod(value.substr(0 , value.size()) , nullptr );
-
-        }
-
-    }
     identifier segment::getIdentifier(const std::string &name) const {
         return *std::find_if(identifiers.begin() , identifiers.end(), [&name](const identifier& curIdent){
             return curIdent.getName() == name;
@@ -144,7 +129,7 @@ namespace assembler{
     IdentifierType identifier::getType() const {
         return type;
     }
-    bool identifier::isCorrectIdentifierValue() const {
+    bool identifier::isCorrectIdentifierValue() {
         auto positionOfMinusInValue = std::find(value.begin(), value.end(), '-');
         auto tmp = positionOfMinusInValue == value.begin() ? value.substr(1, value.size()) : value;
         auto lastLetter = static_cast <char> ( std::tolower(static_cast<unsigned char> (value.back())));
@@ -169,6 +154,7 @@ namespace assembler{
                         return false;
                     }
                 }
+                valueInDec = std::to_string(fromHexToDec(value));
                 break;
             case 'b':
                 for (const auto &it : tmp.substr(0, tmp.size() - 2)) {
@@ -186,6 +172,7 @@ namespace assembler{
                     if(!isCorrectRangesForType(this->type , std::to_string(fromBinaryToDec(tmp)))){
                         return false;
                     }
+                    valueInDec = std::to_string(fromBinaryToDec(value));
 
                 }
                 break;
@@ -208,8 +195,10 @@ namespace assembler{
                 if(!isCorrectRangesForType(this->type , tmp)){
                     return false;
                 }
+                valueInDec = value;
                 break;
         }
+
         return true;
     }
     bool identifier::isCorrectRangesForType(IdentifierType type , const std::string &value) const {
@@ -490,10 +479,12 @@ namespace assembler{
         std::string returnValue;
         if(isWordInVector(registers8Vector() , operands[0])){
             returnValue = "F6 E";
+        } else if(isWordInVector(registers32Vector() , operands[0])){
+            returnValue = "66| F7 E" ;
         } else {
             returnValue = "F7 E" ;
         }
-        returnValue += fromDecToHex(8 + getOpCod(operands[0]));
+        returnValue += fromDecToHex(8 + fromBinaryToDec(getOpCod(operands[0])));
 
         return returnValue;
     }
@@ -509,6 +500,7 @@ namespace assembler{
         for(const auto& oneStr : operands){
             string += oneStr;
         }
+        string += "&";
         userIdentifiers::getMapOfAdressExpression()[line] = string;
         if( operands.size() > 3 ) {
             if(isWordInVector(segmentRegisters() , operands.front()) && isWordInVector(registers32Vector() , operands[4])){
@@ -550,7 +542,29 @@ namespace assembler{
 
     }
     std::string Or::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
-        return "";
+        std::string out ;
+        if(isWordInVector(registers32Vector() , operands.front())){
+            out += "66| ";
+
+        }
+        if(isWordInVector(registers8Vector() , operands.front())){
+            out += "0A ";
+        } else {
+            out += "0B ";
+        }
+        std::string result = "11";
+        result += getOpCod(operands.front());
+        result += getOpCod(operands.back());
+        int value = fromBinaryToDec(result);
+        result.clear();
+        do
+        {
+            result = result + fromDecToHex(value % 16);
+            value = value / 16;
+        } while (value > 0);
+        std::reverse(result.begin() , result.end());
+        out += result;
+        return out;
     }
     /************   Or     *************/
 
