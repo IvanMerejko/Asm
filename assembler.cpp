@@ -6,6 +6,7 @@
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+
 #include <cmath>
 
 #include "assembler.h"
@@ -20,6 +21,16 @@ namespace assembler{
      *  address expresion numbers of byte
      *
      * */
+    std::string getCodOfSegmentRegister(const std::string& reg){
+        std::string tmp{reg};
+        std::transform(tmp.begin() , tmp.end() , tmp.begin() , ::tolower);
+        static std::map<std::string , std::string> map{
+                {"es" , "26:"} , {"cs" , "2E:"} , {"ss" , "36:"} ,
+                {"ds" , ""} , {"fs" , "64:"} , {"gs" , "65:"} ,
+
+        };
+        return map[tmp];
+    }
     std::string  getOpCod(const std::string& reg){
         std::string tmp{reg};
         std::transform(tmp.begin() , tmp.end() , tmp.begin() , ::tolower);
@@ -34,7 +45,7 @@ namespace assembler{
             {"bh" , "111"} , {"di" , "111"} , {"edi" , "111"} ,
 
         };
-        return map[reg];
+        return map[tmp];
     }
     std::string fromDecToHex(int value){
         switch (value){
@@ -360,6 +371,8 @@ namespace assembler{
                 "ds",
                 "es",
                 "ss",
+                "fs",
+                "gs",
         };
         return segmentsRegisters;
     }
@@ -564,7 +577,7 @@ namespace assembler{
         string += "&";
         userIdentifiers::getMapOfAdressExpression()[line] = string;
         if( operands.size() > 3 ) {
-            if(isWordInVector(segmentRegisters() , operands.front()) && isWordInVector(registers32Vector() , operands[4])){
+            if(isWordInVector({"cs","es","ss","fs","gs",} , operands.front()) && isWordInVector(registers32Vector() , operands[4])){
                 return 3;
             } else if(isWordInVector(registers32Vector() , operands[2])){
                 return 3;
@@ -581,23 +594,72 @@ namespace assembler{
                 return "F7";
         }
     }
+    std::string getResultForIdiv(const identifier& ident , const stringsVector& operands){
+
+    }
     std::string Idiv::getBites(const data& data_segment , const code& code_segment , int address ) {
         std::string result;
+        int i = 0;
+        bool isEightOperands = operands.size() == 8;
         /*
          * TODO
          * save ident before switch
          * */
         switch (operands.size()){
-            case 1:
-                if(data_segment.isDeclaredIdentifier(operands.front())){
-                    if(data_segment.getIdentifier(operands.front()).getType() == IdentifierType::DD){
+            case 6:
+            case 8:
+                result += "67| ";
+
+            case 3:
+                if(operands.size() == 6){
+                    i = 0;
+                    isEightOperands = true;
+                } else {
+                    i = 2;
+                }
+
+            case 1:{
+
+                if(data_segment.isDeclaredIdentifier(operands[i])){
+                    if(data_segment.getIdentifier(operands[i]).getType() == IdentifierType::DD){
+                        result +="66| ";
+
+                    }
+                    if(operands.size() == 3 || operands.size() == 8){
+                        result += getCodOfSegmentRegister(operands.front()) + " ";
+                    }
+                    result += getStartBitesForIdidv(data_segment.getIdentifier(operands[i]).getType());
+                    if(isEightOperands){
+                        result += " 3C75";
+                    } else {
+                        result += " 3E";
+                    }
+
+                    std::string out;
+                    int identAddress = data_segment.getIdentifier(operands[i]).address;
+                    do
+                    {
+                        out = out + fromDecToHex(identAddress % 16);
+                        identAddress = identAddress / 16;
+                    } while (identAddress > 0);
+                    auto size = out.size();
+                    for(int i = 0 ; i < (isEightOperands ? 8 - size : 4 - size); i++){
+                        out.push_back('0');
+                    }
+                    std::reverse(out.begin() , out.end());
+                    result += " " + out + " R";
+                } else {
+                    if(code_segment.getIdentifier(operands[i]).getType() == IdentifierType::DD){
                         result =" 66| ";
 
                     }
-                    result += getStartBitesForIdidv(data_segment.getIdentifier(operands.front()).getType());
+                    if(operands.size()  || operands.size() == 8){
+                        result += getCodOfSegmentRegister(operands.front()) + " ";
+                    }
+                    result += getStartBitesForIdidv(code_segment.getIdentifier(operands[i]).getType());
                     result += " 3E";
                     std::string out;
-                    int identAddress = data_segment.getIdentifier(operands.front()).address;
+                    int identAddress = code_segment.getIdentifier(operands[i]).address;
                     do
                     {
                         out = out + fromDecToHex(identAddress % 16);
@@ -611,6 +673,8 @@ namespace assembler{
                     result += " " + out + " R";
                 }
                 break;
+            }
+
             default:
                 result = "";
         }

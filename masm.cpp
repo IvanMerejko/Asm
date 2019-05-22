@@ -19,6 +19,26 @@ void masm::createListingFile() {
     firstView();
     checkAllUsedButNotDeclaredIdentifiers();
     createAddress();
+    for(const auto& [name , lines] : assembler::userIdentifiers::getUsedLabels()){
+        if( !_code.isLabelDeclared(name)){
+            for(const auto& tmp : lines){
+                infoAboutLines[tmp].isErrorInLine = true;
+            }
+        } else{
+            for(const auto& tmp : lines){
+
+                const auto distance = infoAboutLines[tmp].address - _code.getLabelByName(name).position;
+                std::cout <<  infoAboutLines[tmp].address << "           " << _code.getLabelByName(name).position  << '\n' ;
+
+                if( distance >= 128 || distance < 0){
+                    addValueForALlAddressFromLine(tmp , 2);
+                }
+            }
+
+        }
+
+    }
+//    checkAllUsedButNotDeclaredIdentifiers();
     secondView();
     printAllIdentifiers();
 }
@@ -353,12 +373,12 @@ void masm::checkAllUsedButNotDeclaredIdentifiers(){
         } else{
             for(const auto& tmp : lines){
 
-                const auto distance = infoAboutLines[tmp].address - _code.getLabelByName(name).position;
-                std::cout <<  infoAboutLines[tmp].address << "           " << _code.getLabelByName(name).position  << '\n' ;
-
-                if( distance >= 80 || distance < 0){
-                    addValueForALlAddressFromLine(tmp , 2);
-                }
+//                const auto distance = infoAboutLines[tmp].address - _code.getLabelByName(name).position;
+//                std::cout <<  infoAboutLines[tmp].address << "           " << _code.getLabelByName(name).position  << '\n' ;
+//
+//                if( distance >= 128 || distance < 0){
+//                    addValueForALlAddressFromLine(tmp , 2);
+//                }
             }
 
         }
@@ -390,11 +410,13 @@ void masm::createAddress() {
                 string = string.substr(0 , string.size() - 1);
             }
             int value {0};
+            bool isAdd = false;
             auto add_symbol_pos = string.find('#');
             std::string add_value;
             if(add_symbol_pos != std::string::npos){
                 add_value = string.substr(add_symbol_pos + 1);
                 string = string.substr(0 , add_symbol_pos );
+                isAdd = true;
 
             }
             assembler::stringsVector operands{string};
@@ -407,7 +429,11 @@ void masm::createAddress() {
                     }
                     break;
                 case 3:
-                    value = 3;
+                    if(!assembler::isWordInVector({"ds"} , operands.front())){
+                        value = 3;
+                    } else {
+                        value = 2;
+                    }
                     if(isDD_Identifier(operands.back())){
                         value += 1;
                     }
@@ -416,7 +442,14 @@ void masm::createAddress() {
                     }
                     break;
                 case 8 :
-                    value = 1;
+                    if(isAdd && assembler::isWordInVector({"ds"} , operands.front())){
+                        value = 0;
+                    } else {
+                        value = 1;
+                    }
+
+
+
                     value += getBytesForRegister(operands[4]);
                     if(isDD_Identifier(operands[2])){
                         value += 1;
