@@ -44,13 +44,14 @@ namespace assembler{
         friend bool operator<(const identifier &lft, const identifier &rht);
 
     public:
+        int address;
         IdentifierType type;
         std::string name;
         std::string value;
         std::string valueInDec;
 
-        identifier(std::string name, IdentifierType type, std::string value)
-                : name{std::move(name)}, type{type}, value{std::move(value)} , valueInDec{} {};
+        identifier(std::string name, IdentifierType type, std::string value , int _address = 0)
+                : name{std::move(name)}, type{type}, value{std::move(value)} , valueInDec{} , address{_address} {};
 
         identifier(std::string name, IdentifierType type)
                 : name{std::move(name)}, type{type}, value{""} {};
@@ -73,6 +74,7 @@ namespace assembler{
         int position;
         label(std::string name , int pos)
                 :name{std::move(name)} , position{pos}{};
+        void addValueToPosition(int value);
     };
     std::string getNameOfIdentifierType(const identifier& cur_ident);
     struct segment{
@@ -99,6 +101,7 @@ namespace assembler{
         code() = default;
         bool pushLabel(label&& label) ;
         bool isLabelDeclared(const std::string& label_name) const;
+        void changePositionOfAllLabels (int start , int value);
         const label& getLabelByName(const std::string& label_name) const;
     };
 
@@ -162,7 +165,7 @@ namespace assembler{
         virtual ~Command() = default;
         virtual bool isCorrectOperands(size_t line) = 0;
         virtual int  getNumberOfByte(size_t) = 0;
-        virtual std::string getBites(const data& data_segment , const code& code_segment) = 0;
+        virtual std::string getBites(const data& data_segment , const code& code_segment , int address = 0) = 0;
         //virtual std::string createByteCode() = 0;
 
     };
@@ -176,7 +179,7 @@ namespace assembler{
         bool isCorrectFirstOperand();
         bool isCorrectSecondOperand();
         int  getNumberOfByte(size_t) override ;
-        std::string getBites(const data& data_segment , const code& code_segment) override ;
+        std::string getBites(const data& data_segment , const code& code_segment , int address = 0) override ;
     };
     class Imul : public Command{
     public:
@@ -187,7 +190,7 @@ namespace assembler{
         bool isCorrectOperands(size_t line) override;
         //std::string createByteCode() override ;
         int  getNumberOfByte(size_t) override ;
-        std::string getBites(const data& data_segment , const code& code_segment) override ;
+        std::string getBites(const data& data_segment , const code& code_segment , int address = 0) override ;
     };
     class Idiv : public Command{
     public:
@@ -199,7 +202,7 @@ namespace assembler{
         ~Idiv() override = default ;
         bool isCorrectOperands(size_t line) override;
         int  getNumberOfByte(size_t) override ;
-        std::string getBites(const data& data_segment , const code& code_segment) override ;
+        std::string getBites(const data& data_segment , const code& code_segment , int address = 0) override ;
     };
     class Or : public Command{
     public:
@@ -211,7 +214,7 @@ namespace assembler{
         int  getNumberOfByte(size_t) override ;
         bool isCorrectFirstOperand();
         bool isCorrectSecondOperand();
-        std::string getBites(const data& data_segment , const code& code_segment) override ;
+        std::string getBites(const data& data_segment , const code& code_segment , int address = 0) override ;
     };
     class Cmp : public Command{
     public:
@@ -223,7 +226,7 @@ namespace assembler{
         int  getNumberOfByte(size_t) override ;
         bool isCorrectFirstOperand();
         bool isCorrectSecondOperand(size_t line);
-        std::string getBites(const data& data_segment , const code& code_segment) override ;
+        std::string getBites(const data& data_segment , const code& code_segment , int address = 0) override ;
     };
     class Jng : public Command{
     public:
@@ -233,7 +236,7 @@ namespace assembler{
         ~Jng() override = default ;
         bool isCorrectOperands(size_t line) override ;
         int  getNumberOfByte(size_t) override ;
-        std::string getBites(const data& data_segment , const code& code_segment) override ;
+        std::string getBites(const data& data_segment , const code& code_segment , int address = 0) override ;
     };
     class And : public Command{
     public:
@@ -245,7 +248,7 @@ namespace assembler{
         int  getNumberOfByte(size_t) override ;
         bool isCorrectFirstOperand(size_t line);
         bool isCorrectSecondOperand();
-        std::string getBites(const data& data_segment , const code& code_segment) override ;
+        std::string getBites(const data& data_segment , const code& code_segment , int address = 0) override ;
     };
     class Add : public Command{
     public:
@@ -257,7 +260,7 @@ namespace assembler{
         int  getNumberOfByte(size_t) override ;
         bool isCorrectFirstOperand(size_t line);
         bool isCorrectSecondOperand();
-        std::string getBites(const data& data_segment , const code& code_segment) override ;
+        std::string getBites(const data& data_segment , const code& code_segment , int address = 0) override ;
 
     };
     class Cwde : public Command{
@@ -268,7 +271,7 @@ namespace assembler{
         ~Cwde() override = default ;
         bool isCorrectOperands(size_t line) override ;
         int  getNumberOfByte(size_t) override ;
-        std::string getBites(const data& data_segment , const code& code_segment) override ;
+        std::string getBites(const data& data_segment , const code& code_segment , int address = 0) override ;
     };
     class Model : public Command{
     public:
@@ -278,7 +281,7 @@ namespace assembler{
         ~Model() override = default ;
         bool isCorrectOperands(size_t line) override ;
         int  getNumberOfByte(size_t) override ;
-        std::string getBites(const data& data_segment , const code& code_segment) override ;
+        std::string getBites(const data& data_segment , const code& code_segment , int address = 0) override ;
     };
 
 

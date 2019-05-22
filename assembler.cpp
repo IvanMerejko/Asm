@@ -38,6 +38,8 @@ namespace assembler{
     }
     std::string fromDecToHex(int value){
         switch (value){
+            case 0:
+                return "0";
             case 1:
                 return "1";
             case 2:
@@ -256,6 +258,17 @@ namespace assembler{
         });
         return *it;
     }
+    void label::addValueToPosition(int value) {
+        position += value;
+    }
+    void code::changePositionOfAllLabels(int start , int value) {
+        for(auto& oneLabel : labels){
+            if(start < oneLabel.position){
+                const_cast<label&>(oneLabel).addValueToPosition(value);
+            }
+
+        }
+    }
     bool code::isLabelDeclared(const std::string &label_name) const {
         return std::find_if(labels.cbegin() , labels.cend(), [&label_name](const label& currectLabel){
             return currectLabel.name == label_name;
@@ -444,8 +457,56 @@ namespace assembler{
     bool Mov::isCorrectFirstOperand() {
         return isRegister(operands.front());
     }
-    std::string Mov::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
-        return "";
+    std::string Mov::getBites(const data& data_segment , const code& code_segment , int address ) {
+        std::string result ;
+        std::string out;
+        if(isWordInVector(registers8Vector() , operands.front())){
+            result = "B0";
+        } else {
+            result = "B8";
+        }
+        int value = fromHexToDec(result);
+
+        value += fromBinaryToDec(getOpCod(operands.front()));
+        result.clear();
+
+        do
+        {
+            result = result + fromDecToHex(value % 16);
+            value = value / 16;
+        } while (value > 0);
+        std::reverse(result.begin() , result.end());
+        if(isWordInVector(registers32Vector() , operands.front())){
+            out = "66| ";
+        }
+        out += result;
+        auto type = isWordInVector(registers8Vector()  , operands.front()) ?  IdentifierType::DB :
+                    isWordInVector(registers16Vector() , operands.front()) ? IdentifierType::DW :
+                    isWordInVector(registers32Vector() , operands.front()) ? IdentifierType::DD :
+                    IdentifierType::INCORRECT_IDENTIFIER;
+        auto ident = identifier{"" , type , operands.back() , 0};
+        ident.isCorrectIdentifierValue();
+        std::string hexValue = getHexCodForValue(std::stoi(ident.getValueInDec()));
+        if(isWordInVector(registers8Vector() , operands.front())){
+            hexValue = hexValue.substr(0 , 2);
+        } else if(isWordInVector(registers16Vector() , operands.front())){
+            hexValue = hexValue.substr(0 , 4);
+            for(int i = 0 ; i < hexValue.size() ;i +=2){
+                char letter = hexValue[i];
+                hexValue[i] = hexValue[i+1];
+                hexValue[i+1] = letter;
+            }
+            std::reverse(hexValue.begin() , hexValue.end());
+        } else {
+            for(int i = 0 ; i < hexValue.size() ;i +=2){
+                char letter = hexValue[i];
+                hexValue[i] = hexValue[i+1];
+                hexValue[i+1] = letter;
+            }
+            std::reverse(hexValue.begin() , hexValue.end());
+        }
+        out += " " + hexValue;
+        return out;
     }
     /*
      *  TODO
@@ -458,7 +519,7 @@ namespace assembler{
                     isWordInVector(registers16Vector() , operands.front()) ? IdentifierType::DW :
                     isWordInVector(registers32Vector() , operands.front()) ? IdentifierType::DD :
                     IdentifierType::INCORRECT_IDENTIFIER;
-        return identifier{"" , type , operands.back()}.isCorrectIdentifierValue();
+        return identifier{"" , type , operands.back() , 0}.isCorrectIdentifierValue();
     }
     int Mov::getNumberOfByte(size_t line) {
         size_t tmp = isWordInVector(registers8Vector()  , operands.front()) ?  1 :
@@ -475,7 +536,7 @@ namespace assembler{
     int Imul::getNumberOfByte(size_t line) {
         return isWordInVector(registers32Vector() , operands.front()) ? 3 : 2;
     }
-    std::string Imul::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+    std::string Imul::getBites(const data& data_segment , const code& code_segment , int address ) {
         std::string returnValue;
         if(isWordInVector(registers8Vector() , operands[0])){
             returnValue = "F6 E";
@@ -512,8 +573,48 @@ namespace assembler{
         return 2;
 
     }
-    std::string Idiv::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
-        return "";
+    std::string getStartBitesForIdidv(IdentifierType type){
+        switch (type){
+            case IdentifierType::DB:
+                return "F6";
+            default:
+                return "F7";
+        }
+    }
+    std::string Idiv::getBites(const data& data_segment , const code& code_segment , int address ) {
+        std::string result;
+        /*
+         * TODO
+         * save ident before switch
+         * */
+        switch (operands.size()){
+            case 1:
+                if(data_segment.isDeclaredIdentifier(operands.front())){
+                    if(data_segment.getIdentifier(operands.front()).getType() == IdentifierType::DD){
+                        result =" 66| ";
+
+                    }
+                    result += getStartBitesForIdidv(data_segment.getIdentifier(operands.front()).getType());
+                    result += " 3E";
+                    std::string out;
+                    int identAddress = data_segment.getIdentifier(operands.front()).address;
+                    do
+                    {
+                        out = out + fromDecToHex(identAddress % 16);
+                        identAddress = identAddress / 16;
+                    } while (identAddress > 0);
+                    auto size = out.size();
+                    for(int i = 0 ; i < 4 - size ; i++){
+                        out.push_back('0');
+                    }
+                    std::reverse(out.begin() , out.end());
+                    result += " " + out + " R";
+                }
+                break;
+            default:
+                result = "";
+        }
+        return result;
     }
     /************   Idiv     *************/
 
@@ -541,7 +642,7 @@ namespace assembler{
         }
 
     }
-    std::string Or::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+    std::string Or::getBites(const data& data_segment , const code& code_segment , int address ) {
         std::string out ;
         if(isWordInVector(registers32Vector() , operands.front())){
             out += "66| ";
@@ -601,7 +702,7 @@ namespace assembler{
         splitByDelimiters(":[]*" , tmp);
         return  tmp.size() > 5 ? 3 : 2;
     }
-    std::string Cmp::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+    std::string Cmp::getBites(const data& data_segment , const code& code_segment , int address ) {
         return "";
     }
     /************   Cmp     *************/
@@ -618,8 +719,29 @@ namespace assembler{
 
         return 2;
     }
-    std::string Jng::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
-        return "";
+    std::string Jng::getBites(const data& data_segment , const code& code_segment , int address ) {
+        std::string result;
+
+        int value =  code_segment.getLabelByName(operands.front()).position;
+//        std::cout << std::dec << value << " " << address << " " << address - value << " ";
+        if(address < value || address - value > 128){
+            result =  "0F 8E ";
+            std::string labelAddress;
+            do
+            {
+                labelAddress = labelAddress + fromDecToHex(value % 16);
+                value = value / 16;
+            } while (value > 0);
+            auto size = labelAddress.size();
+            for(int i = 0 ; i < 4 - size ; i++){
+                labelAddress.push_back('0');
+            }
+            std::reverse(labelAddress.begin() , labelAddress.end());
+            result += labelAddress + " R";
+
+        }
+//        std::cout << address << "   " << code_segment.getLabelByName(operands.front()).position;
+        return result;
     }
     /************   Jng     *************/
 
@@ -643,7 +765,7 @@ namespace assembler{
         userIdentifiers::getMapOfAdressExpression()[line] = operands.front();
         return 2;
     }
-    std::string And::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+    std::string And::getBites(const data& data_segment , const code& code_segment , int address ) {
         return "";
     }
     /************   And     *************/
@@ -657,7 +779,7 @@ namespace assembler{
 
     };
     bool Add::isCorrectSecondOperand() {
-        return identifier("" , IdentifierType::DD, operands.back()).isCorrectIdentifierValue();
+        return identifier("" , IdentifierType::DD, operands.back() , 0).isCorrectIdentifierValue();
     }
     bool Add::isCorrectFirstOperand(size_t line) {
         stringsVector firstOperand{operands.front()};
@@ -675,7 +797,7 @@ namespace assembler{
 
         return 2;
     }
-    std::string Add::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+    std::string Add::getBites(const data& data_segment , const code& code_segment , int address ) {
         return "";
     }
     /************   Add     *************/
@@ -687,7 +809,7 @@ namespace assembler{
     int Cwde::getNumberOfByte(size_t line) {
         return 2;
     }
-    std::string Cwde::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+    std::string Cwde::getBites(const data& data_segment , const code& code_segment , int address ) {
         return "66| 98";
     }
     /************   Cwde     *************/
@@ -700,7 +822,7 @@ namespace assembler{
     int Model::getNumberOfByte(size_t line) {
         return 0;
     }
-    std::string Model::getBites(const assembler::data &data_segment, const assembler::code &code_segment) {
+    std::string Model::getBites(const data& data_segment , const code& code_segment , int address ) {
         return "";
     }
     /************   Model     *************/
@@ -812,7 +934,7 @@ namespace assembler{
             return WordType::REGISTER;
         } else if(isWordInVector(directivesVector() , operand)) {
             return WordType::DIRECTIVE;
-        } else if (identifier{"" , IdentifierType::INCORRECT_IDENTIFIER , operand}.isCorrectIdentifierValue()){
+        } else if (identifier{"" , IdentifierType::INCORRECT_IDENTIFIER , operand , 0}.isCorrectIdentifierValue()){
             return WordType::CONSTANT;
         } else if (isWordInVector(instructionsVector() , operand)){
             return WordType::INSTRUCTION;

@@ -45,7 +45,13 @@ void masm::secondView() {
             assembler::stringsVector vector;
             std::string help{tmp};
             assembler::createVectorOfWordsFromString(help , vector);
+            while (!vector.empty()  && isLabel(vector.front()) ){
 
+                for(size_t i = 0 ; i < vector.size() - 1 ; ++i) {
+                    vector.at(i) = vector.at(i+1);
+                }
+                vector.pop_back();
+            }
             std::cout << '\n';
             //assembler::splitByDelimiters("{}", vector);
             if(!assembler::isWordInVector({"end"} , oneStringFromAsmFile) && !assembler::isWordInVector({"model"} , vector.front())){
@@ -59,9 +65,13 @@ void masm::secondView() {
 
                     switch (infoAboutLines[currentLine].type){
                         case TypeOfLine::COMMAND:
+                            if(assembler::isWordInVector({"jng"} , vector.front())){
+                                std::cout << std::setw(6) << assembler::getPointerForCommandByName(vector[0] , operands)->getBites(_data , _code , infoAboutLines[currentLine].address ) ;
+                            } else{
+                                std::cout << std::setw(6) << assembler::getPointerForCommandByName(vector[0] , operands)->getBites(_data , _code) ;
+                            }
 
 
-                            std::cout << std::setw(6) << assembler::getPointerForCommandByName(vector[0] , operands)->getBites(_data , _code) ;
                             break;
                         case TypeOfLine::IDENTIFIER: {
 
@@ -281,7 +291,7 @@ void masm::workWithIdentifier() {
         currentAddressEqualsToPreviousAddress();
         return;
     }
-    typename assembler::identifier new_identifier (wordsInString.front() , identifierType , wordsInString.back());
+    typename assembler::identifier new_identifier (wordsInString.front() , identifierType , wordsInString.back() , infoAboutLines[line].address);
 
     if( (infoAboutLines[line].isErrorInLine =  !new_identifier.isCorrectIdentifierValue())){
         currentAddressEqualsToPreviousAddress();
@@ -308,7 +318,7 @@ bool masm::pushIdentifier(assembler::identifier&& new_identifier) {
 }
 bool masm::takeLabelsFromLine() {
     //  ?
-    if( !isLabel(wordsInString.front()) /* && (infoAboutLines[line].isErrorInLine =  !_code.isOpen())*/ )
+    if( !isLabel(wordsInString.front())  && (infoAboutLines[line].isErrorInLine =  !_code.isOpen()) )
         return false;
 
     while (!wordsInString.empty()  && isLabel(wordsInString.front()) ){
@@ -319,7 +329,7 @@ bool masm::takeLabelsFromLine() {
         if(wordsInString.front().empty()){
             return true;
         }
-        if( _code.pushLabel(std::move(assembler::label(wordsInString.front().substr(0 ,wordsInString.front().size()) , infoAboutLines[line-1].address))) ){
+        if( _code.pushLabel(std::move(assembler::label(wordsInString.front().substr(0 ,wordsInString.front().size()) , infoAboutLines[line].address))) ){
             return true;
         }
         for(size_t i = 0 ; i < wordsInString.size() - 1 ; ++i) {
@@ -346,7 +356,7 @@ void masm::checkAllUsedButNotDeclaredIdentifiers(){
                 const auto distance = infoAboutLines[tmp].address - _code.getLabelByName(name).position;
                 std::cout <<  infoAboutLines[tmp].address << "           " << _code.getLabelByName(name).position  << '\n' ;
 
-                if( distance >= 80 || distance <= 0){
+                if( distance >= 80 || distance < 0){
                     addValueForALlAddressFromLine(tmp , 2);
                 }
             }
@@ -481,6 +491,7 @@ void masm::addValueForALlAddressFromLine(int start_line, int value) {
     for(size_t i = start_line ; i < infoAboutLines.size() ; ++i){
         infoAboutLines[i + 1].address += value;
     }
+    _code.changePositionOfAllLabels(infoAboutLines[start_line].address , value);
 }
 int masm::fromStringToInt(const std::string &string_Value) {
     switch(std::tolower(string_Value.back())){
