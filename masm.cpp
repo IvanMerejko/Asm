@@ -411,8 +411,16 @@ void masm::createAddress() {
             }
             int value {0};
             bool isAdd = false;
+            bool isAnd = false;
             auto add_symbol_pos = string.find('#');
+            auto and_symbol_pos = string.find('^');
             std::string add_value;
+            std::string and_register_type;
+            if(and_symbol_pos != std::string::npos){
+                and_register_type = string.substr(and_symbol_pos + 1);
+                string = string.substr(0 , and_symbol_pos );
+                isAnd = true;
+            }
             if(add_symbol_pos != std::string::npos){
                 add_value = string.substr(add_symbol_pos + 1);
                 string = string.substr(0 , add_symbol_pos );
@@ -423,12 +431,42 @@ void masm::createAddress() {
             assembler::splitByDelimiters(":[]*" , operands);
             switch (operands.size()){
                 case 1:
+                    if(isAnd){
+                        if(_data.isDeclaredIdentifier(operands.front())){
+                            if(_data.getIdentifier(operands.front()).getType() != assembler::getTypeOfRegister(and_register_type)){
+                                addValueForALlAddressFromLine(line , -2);
+                                infoAboutLines[line].isErrorInLine = true;
+                                continue;
+                            }
+                        } else {
+                            if(_code.getIdentifier(operands.front()).getType() != assembler::getTypeOfRegister(and_register_type)){
+                                addValueForALlAddressFromLine(line , -2);
+                                infoAboutLines[line].isErrorInLine = true;
+                                continue;
+                            }
+                        }
+                    }
                     value = getBytesForUserIdetifier(operands.front());
                     if(add_symbol_pos != std::string::npos ){
                         value += getAddCommandSpecialBytes(operands.front() , fromStringToInt(add_value));
                     }
                     break;
                 case 3:
+                    if(isAnd){
+                        if(_data.isDeclaredIdentifier(operands[2])){
+                            if(_data.getIdentifier(operands[2]).getType() != assembler::getTypeOfRegister(and_register_type)){
+                                addValueForALlAddressFromLine(line , -2);
+                                infoAboutLines[line].isErrorInLine = true;
+                                continue;
+                            }
+                        } else {
+                            if(_code.getIdentifier(operands[2]).getType() != assembler::getTypeOfRegister(and_register_type)){
+                                addValueForALlAddressFromLine(line , -2);
+                                infoAboutLines[line].isErrorInLine = true;
+                                continue;
+                            }
+                        }
+                    }
                     if(!assembler::isWordInVector({"ds"} , operands.front())){
                         value = 3;
                     } else {
@@ -442,6 +480,22 @@ void masm::createAddress() {
                     }
                     break;
                 case 8 :
+                    if(isAnd){
+                        if(_data.isDeclaredIdentifier(operands[2])){
+                            if(_data.getIdentifier(operands[2]).getType() != assembler::getTypeOfRegister(and_register_type)){
+                                addValueForALlAddressFromLine(line , -2);
+                                infoAboutLines[line].isErrorInLine = true;
+                                continue;
+                            }
+                        } else {
+                            if(_code.getIdentifier(operands[2]).getType() != assembler::getTypeOfRegister(and_register_type)){
+                                addValueForALlAddressFromLine(line , -2);
+                                infoAboutLines[line].isErrorInLine = true;
+                                continue;
+                            }
+                        }
+                    }
+
                     if(isAdd && assembler::isWordInVector({"ds"} , operands.front())){
                         value = 0;
                     } else {
@@ -460,6 +514,21 @@ void masm::createAddress() {
                     }
                     break;
                 case 6 :
+                    if(isAnd){
+                        if(_data.isDeclaredIdentifier(operands.front())){
+                            if(_data.getIdentifier(operands.front()).getType() != assembler::getTypeOfRegister(and_register_type)){
+                                addValueForALlAddressFromLine(line , -2);
+                                infoAboutLines[line].isErrorInLine = true;
+                                continue;
+                            }
+                        } else {
+                            if(_code.getIdentifier(operands.front()).getType() != assembler::getTypeOfRegister(and_register_type)){
+                                addValueForALlAddressFromLine(line , -2);
+                                infoAboutLines[line].isErrorInLine = true;
+                                continue;
+                            }
+                        }
+                    }
                     if(assembler::isWordInVector(assembler::segmentRegisters() , operands.front())){
                         value = 1;
                         value += getBytesForRegister(operands[4]);

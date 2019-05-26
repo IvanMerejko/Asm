@@ -36,6 +36,7 @@ namespace assembler{
     }
     std::string fromDecToBinary(int value);
     std::string  getOpCod(const std::string& reg);
+    IdentifierType getTypeOfRegister(const std::string& reg);
     int fromHexToDec(const std::string& value);
     std::string  fromDecToHex(int value);
     int fromBinaryToDec(const std::string& value);

@@ -21,6 +21,38 @@ namespace assembler{
      *  address expresion numbers of byte
      *
      * */
+    std::string getFirstRowForRegister(const std::string& reg){
+        std::string tmp{reg};
+        std::transform(tmp.begin() , tmp.end() , tmp.begin() , ::tolower);
+        static std::map<std::string , std::string> map{
+                {"al" , "45"} , {"ax" , "45"} , {"eax" , "45"} ,
+                {"cl" , "4D"} , {"cs" , "4D"} , {"ecs" , "4D"} ,
+                {"dl" , "55"} , {"dx" , "55"} , {"edx" , "55"} ,
+                {"bl" , "5D"} , {"bx" , "5D"} , {"ebx" , "5D"} ,
+                {"ah" , "65"} , {"sp" , "65"} , {"esp" , "65"} ,
+                {"ch" , "6D"} , {"bp" , "6D"} , {"ebp" , "6D"} ,
+                {"dh" , "75"} , {"si" , "75"} , {"esi" , "75"} ,
+                {"bh" , "7D"} , {"di" , "7D"} , {"edi" , "7D"}
+
+        };
+        return map[tmp];
+    }
+    std::string getSecondRowForRegister(const std::string& reg){
+        std::string tmp{reg};
+        std::transform(tmp.begin() , tmp.end() , tmp.begin() , ::tolower);
+        static std::map<std::string , std::string> map{
+                {"al" , "04"} , {"ax" , "04"} , {"eax" , "04"} ,
+                {"cl" , "0C"} , {"cx" , "0C"} , {"ecx" , "0C"} ,
+                {"dl" , "14"} , {"dx" , "14"} , {"edx" , "14"} ,
+                {"bl" , "1C"} , {"bx" , "1C"} , {"ebx" , "1C"} ,
+                {"ah" , "24"} , {"sp" , "24"} , {"esp" , "24"} ,
+                {"ch" , "2C"} , {"bp" , "2C"} , {"ebp" , "2C"} ,
+                {"dh" , "34"} , {"si" , "34"} , {"esi" , "34"} ,
+                {"bh" , "3C"} , {"di" , "3C"} , {"edi" , "3C"}
+
+        };
+        return map[tmp];
+    }
     std::string getCodOfSegmentRegister(const std::string& reg){
         std::string tmp{reg};
         std::transform(tmp.begin() , tmp.end() , tmp.begin() , ::tolower);
@@ -43,6 +75,22 @@ namespace assembler{
             {"ch" , "101"} , {"bp" , "101"} , {"ebp" , "101"} ,
             {"dh" , "110"} , {"si" , "110"} , {"esi" , "110"} ,
             {"bh" , "111"} , {"di" , "111"} , {"edi" , "111"} ,
+
+        };
+        return map[tmp];
+    }
+    IdentifierType getTypeOfRegister(const std::string& reg){
+        std::string tmp{reg};
+        std::transform(tmp.begin() , tmp.end() , tmp.begin() , ::tolower);
+        static std::map<std::string , IdentifierType> map{
+                {"al" , IdentifierType::DB} , {"ax" , IdentifierType::DW} , {"eax" , IdentifierType::DD} ,
+                {"cl" , IdentifierType::DB} , {"cx" , IdentifierType::DW} , {"ecx" , IdentifierType::DD} ,
+                {"dl" , IdentifierType::DB} , {"dx" , IdentifierType::DW} , {"edx" , IdentifierType::DD} ,
+                {"bl" , IdentifierType::DB} , {"bx" , IdentifierType::DW} , {"ebx" , IdentifierType::DD} ,
+                {"ah" , IdentifierType::DB} , {"sp" , IdentifierType::DW} , {"esp" , IdentifierType::DD} ,
+                {"ch" , IdentifierType::DB} , {"bp" , IdentifierType::DW} , {"ebp" , IdentifierType::DD} ,
+                {"dh" , IdentifierType::DB} , {"si" , IdentifierType::DW} , {"esi" , IdentifierType::DD} ,
+                {"bh" , IdentifierType::DB} , {"di" , IdentifierType::DW} , {"edi" , IdentifierType::DD} ,
 
         };
         return map[tmp];
@@ -339,7 +387,9 @@ namespace assembler{
                 "edx",
                 "ecx",
                 "esi",
-                "edi"
+                "edi",
+                "esp",
+                "ebp"
         };
         return registers32;
     }
@@ -601,13 +651,16 @@ namespace assembler{
         std::string result;
         int i = 0;
         bool isEightOperands = operands.size() == 8;
+        int iForRegister = 4;
         /*
          * TODO
          * save ident before switch
          * */
         switch (operands.size()){
             case 6:
+                iForRegister = 2;
             case 8:
+
                 result += "67| ";
 
             case 3:
@@ -630,7 +683,7 @@ namespace assembler{
                     }
                     result += getStartBitesForIdidv(data_segment.getIdentifier(operands[i]).getType());
                     if(isEightOperands){
-                        result += " 3C75";
+                        result += " 3C" + getFirstRowForRegister(operands[iForRegister]);
                     } else {
                         result += " 3E";
                     }
@@ -653,11 +706,15 @@ namespace assembler{
                         result =" 66| ";
 
                     }
-                    if(operands.size()  || operands.size() == 8){
+                    if(operands.size() == 3  || operands.size() == 8){
                         result += getCodOfSegmentRegister(operands.front()) + " ";
                     }
                     result += getStartBitesForIdidv(code_segment.getIdentifier(operands[i]).getType());
-                    result += " 3E";
+                    if(isEightOperands){
+                        result += " 3C"+ getFirstRowForRegister(operands[iForRegister]);
+                    } else {
+                        result += " 3E";
+                    }
                     std::string out;
                     int identAddress = code_segment.getIdentifier(operands[i]).address;
                     do
@@ -666,7 +723,7 @@ namespace assembler{
                         identAddress = identAddress / 16;
                     } while (identAddress > 0);
                     auto size = out.size();
-                    for(int i = 0 ; i < 4 - size ; i++){
+                    for(int i = 0 ; i < (isEightOperands ? 8 - size : 4 - size) ; i++){
                         out.push_back('0');
                     }
                     std::reverse(out.begin() , out.end());
@@ -826,11 +883,125 @@ namespace assembler{
     }
     int And::getNumberOfByte(size_t line) {
 
-        userIdentifiers::getMapOfAdressExpression()[line] = operands.front();
+        userIdentifiers::getMapOfAdressExpression()[line] = operands.front() + "^" + operands.back();
         return 2;
     }
     std::string And::getBites(const data& data_segment , const code& code_segment , int address ) {
-        return "";
+        stringsVector tmp{operands.front()};
+        splitByDelimiters({":[]*"} , tmp);
+        std::string byteForSegReg;
+        std::string prefixForReg;
+        std::string prefixForValue;
+        std::string firstByte;
+        std::string secondByte;
+        std::string addressValue;
+
+
+        std::string secondByteBites = "00";
+        int i = 0;
+        switch (tmp.size()){
+            case 8:
+            case 3:
+                byteForSegReg = getCodOfSegmentRegister(tmp[0]) + " ";
+                break;
+            default:
+                byteForSegReg = "";
+
+        }
+        if(tmp.size() == 6 || tmp.size() == 8){
+            prefixForReg = "67|";
+        }
+
+        secondByteBites += getOpCod(operands.back()) + "110";
+        int value  = fromBinaryToDec(secondByteBites);
+        secondByteBites.clear();
+        do
+        {
+            secondByteBites = secondByteBites + fromDecToHex(value % 16);
+            value = value / 16;
+        } while (value > 0);
+        if(secondByteBites.size() == 1){
+            secondByteBites.push_back('0');
+        }
+        std::reverse(secondByteBites.begin() , secondByteBites.end());
+
+        secondByte = secondByteBites;
+
+        switch (tmp.size()){
+            case 6:
+                secondByte = getSecondRowForRegister(operands.back()) + getFirstRowForRegister(tmp[2]);
+            case 1:
+                i = 0;
+                break;
+            case 8:
+                secondByte = getSecondRowForRegister(operands.back()) + getFirstRowForRegister(tmp[4]);
+            case 3:
+                i = 2;
+                break;
+
+        }
+        bool isFourByteForAddress = tmp.size() == 6 || tmp.size() == 8;
+                if(data_segment.isDeclaredIdentifier(tmp[i])){
+                    if(data_segment.getIdentifier(tmp[i]).getType() == IdentifierType::DD){
+                        prefixForValue ="66|";
+
+                    }
+//                    if(operands.size() == 3 || operands.size() == 8){
+//                        result += getCodOfSegmentRegister(operands.front()) + " ";
+//                    }
+//                    result += getStartBitesForIdidv(data_segment.getIdentifier(operands[i]).getType());
+                    if(isWordInVector(registers8Vector() , operands.back())){
+                        firstByte = "20";
+                    } else {
+                        firstByte = "21";
+                    }
+                    std::string out;
+                    int identAddress = data_segment.getIdentifier(tmp[i]).address;
+                    do
+                    {
+                        out = out + fromDecToHex(identAddress % 16);
+                        identAddress = identAddress / 16;
+                    } while (identAddress > 0);
+                    auto size = out.size();
+                    for(int i = 0 ; i <  (isFourByteForAddress ? 8 : 4) - size; i++){
+                        out.push_back('0');
+                    }
+                    std::reverse(out.begin() , out.end());
+                    addressValue =  out + " R";
+                } else {
+//                    if(code_segment.getIdentifier(operands[i]).getType() == IdentifierType::DD){
+//                        result =" 66| ";
+//
+//                    }
+//                    if(operands.size()  || operands.size() == 8){
+//                        result += getCodOfSegmentRegister(operands.front()) + " ";
+//                    }
+                    if(isWordInVector(registers8Vector() , operands.back())){
+                        firstByte += "20";
+                    } else {
+                        firstByte += "21";
+                    }
+//                    result += getStartBitesForIdidv(code_segment.getIdentifier(tmp[i]).getType());
+//                    result += " 3E";
+                    std::string out;
+                    int identAddress = code_segment.getIdentifier(tmp[i]).address;
+                    do
+                    {
+                        out = out + fromDecToHex(identAddress % 16);
+                        identAddress = identAddress / 16;
+                    } while (identAddress > 0);
+                    auto size = out.size();
+                    for(int i = 0 ; i < (isFourByteForAddress ? 8 : 4)  - size ; i++){
+                        out.push_back('0');
+                    }
+                    std::reverse(out.begin() , out.end());
+                    addressValue = out + " R";
+                }
+
+
+
+
+        return byteForSegReg + " " + prefixForReg + " " + prefixForValue + " " + firstByte + " " + secondByte + " " + addressValue;
     }
     /************   And     *************/
 
